@@ -14,10 +14,12 @@ import kotlin.math.roundToInt
 
 /**
  * Slider grosso customizado em estilo monocromático (Preto, Branco e Cinza).
- * - Pode operar na Vertical (Throttle / Potência) ou Horizontal (Rudder / Pedais).
+ * - Opera na Vertical (Throttle / Reverso) ou Horizontal (Rudder / Pedais).
  * - Trava contra toques acidentais: SÓ move se o toque iniciar (ACTION_DOWN)
  *   em cima do quadradinho (handle) e for arrastado.
- * - Possui suavização exponencial e sensibilidade controlada por delta.
+ * - Acompanhamento 1:1 imediato do dedo (sem atraso visual entre o toque e o quadradinho).
+ * - Suporta modo invertido vertical (isInvertedVertical = true) para o Modo Reverso,
+ *   onde 0% começa no TOPO e puxa-se o quadradinho para BAIXO até 100%.
  */
 class ThickSliderView @JvmOverloads constructor(
     context: Context,
@@ -37,15 +39,23 @@ class ThickSliderView @JvmOverloads constructor(
             invalidate()
         }
 
-    var enableSmoothDamping: Boolean = true
-    var dragSensitivityFactor: Float = 0.88f
+    /**
+     * Quando true (Modo Reverso), o 0% (-1.0) fica no TOPO da barra vertical
+     * e o 100% (+1.0) fica na BASE (puxando a alavanca para trás/baixo).
+     */
+    var isInvertedVertical: Boolean = false
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     var returnToCenterOnRelease: Boolean = false
 
-    private var targetNormalized: Float = -1.0f
     private var currentNormalized: Float = -1.0f
     private var isDraggingThumb: Boolean = false
-    private var dragStartCoord: Float = 0f
-    private var dragStartValue: Float = -1.0f
+
+    // Offset exato entre o ponto de toque e o topo/esquerda do quadradinho para rastreamento 1:1 sem atraso
+    private var grabOffsetFromThumbStartPx: Float = 0f
 
     var onValueChanged: ((Float) -> Unit)? = null
 
@@ -72,7 +82,7 @@ class ThickSliderView @JvmOverloads constructor(
     }
 
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#2B2B2B")
+        color = Color.parseColor("#2E2E2E")
         style = Paint.Style.FILL
     }
 
@@ -94,7 +104,6 @@ class ThickSliderView @JvmOverloads constructor(
 
     fun setNormalizedValueImmediate(value: Float) {
         val clamped = value.coerceIn(-1.0f, 1.0f)
-        targetNormalized = clamped
         currentNormalized = clamped
         onValueChanged?.invoke(currentNormalized)
         invalidate()
@@ -151,19 +160,36 @@ class ThickSliderView @JvmOverloads constructor(
         val thumbHeight = (38f * density).coerceAtMost(trackRect.height() * 0.25f)
         val usableRange = (trackRect.height() - thumbHeight).coerceAtLeast(1f)
 
-        // progress 0.0 (base = -1.0) até 1.0 (topo = +1.0)
+        // progress: 0.0 (0% = -1.0) até 1.0 (100% = +1.0)
         val progress = ((currentNormalized + 1.0f) * 0.5f).coerceIn(0.0f, 1.0f)
-        val thumbTop = trackRect.bottom - thumbHeight - (progress * usableRange)
-        val thumbBottom = thumbTop + thumbHeight
 
-        // Preenchimento da base até o centro do quadradinho
-        fillRect.set(
-            trackRect.left + 2f,
-            thumbRect.centerY().takeIf { it > 0 } ?: thumbBottom,
-            trackRect.right - 2f,
-            trackRect.bottom - 2f
-        )
-        fillRect.top = (thumbTop + thumbBottom) * 0.5f
+        val thumbTop = if (isInvertedVertical) {
+            // Modo Reverso: 0% começa no TOPO e puxa para baixo até 100%
+            trackRect.top + (progress * usableRange)
+        } else {
+            // Modo Normal: 0% começa na BASE e empurra para cima até 100%
+            trackRect.bottom - thumbHeight - (progress * usableRange)
+        }
+        val thumbBottom = thumbTop + thumbHeight
+        val thumbCenterY = (thumbTop + thumbBottom) * 0.5f
+
+        if (isInvertedVertical) {
+            // Preenchimento do TOPO até o quadradinho
+            fillRect.set(
+                trackRect.left + 2f,
+                trackRect.top + 2f,
+                trackRect.right - 2f,
+                thumbCenterY
+            )
+        } else {
+            // Preenchimento da BASE até o quadradinho
+            fillRect.set(
+                trackRect.left + 2f,
+                thumbCenterY,
+                trackRect.right - 2f,
+                trackRect.bottom - 2f
+            )
+        }
         canvas.drawRoundRect(fillRect, cornerRadius, cornerRadius, fillPaint)
 
         // Marcações de escala (25%, 50%, 75%)
@@ -197,7 +223,6 @@ class ThickSliderView @JvmOverloads constructor(
             val rightFill = maxOf(centerX, thumbCenterX)
             fillRect.set(leftFill, trackRect.top + 2f, rightFill, trackRect.bottom - 2f)
             canvas.drawRect(fillRect, fillPaint)
-            // Linha central 0%
             canvas.drawLine(centerX, trackRect.top + 4f, centerX, trackRect.bottom - 4f, tickPaint)
         } else {
             fillRect.set(trackRect.left + 2f, trackRect.top + 2f, thumbCenterX, trackRect.bottom - 2f)
@@ -232,8 +257,12 @@ class ThickSliderView @JvmOverloads constructor(
 
                 parent?.requestDisallowInterceptTouchEvent(true)
                 isDraggingThumb = true
-                dragStartCoord = if (isVertical) event.y else event.x
-                dragStartValue = targetNormalized
+                // Salva a posição exata onde o dedo pegou no quadradinho para acompanhamento 1:1
+                grabOffsetFromThumbStartPx = if (isVertical) {
+                    event.y - thumbRect.top
+                } else {
+                    event.x - thumbRect.left
+                }
                 invalidate()
                 return true
             }
@@ -241,36 +270,37 @@ class ThickSliderView @JvmOverloads constructor(
             MotionEvent.ACTION_MOVE -> {
                 if (!isDraggingThumb) return false
 
-                val usablePixels = if (isVertical) {
-                    (trackRect.height() - thumbRect.height()).coerceAtLeast(1f)
+                if (isVertical) {
+                    val thumbHeight = thumbRect.height()
+                    val usableRange = (trackRect.height() - thumbHeight).coerceAtLeast(1f)
+                    val desiredTop = (event.y - grabOffsetFromThumbStartPx)
+                        .coerceIn(trackRect.top, trackRect.bottom - thumbHeight)
+
+                    val progress = if (isInvertedVertical) {
+                        // Topo = 0.0 (0%), Base = 1.0 (100%)
+                        ((desiredTop - trackRect.top) / usableRange).coerceIn(0.0f, 1.0f)
+                    } else {
+                        // Base = 0.0 (0%), Topo = 1.0 (100%)
+                        ((trackRect.bottom - thumbHeight - desiredTop) / usableRange).coerceIn(0.0f, 1.0f)
+                    }
+
+                    currentNormalized = (progress * 2.0f - 1.0f).coerceIn(-1.0f, 1.0f)
                 } else {
-                    (trackRect.width() - thumbRect.width()).coerceAtLeast(1f)
+                    val thumbWidth = thumbRect.width()
+                    val usableRange = (trackRect.width() - thumbWidth).coerceAtLeast(1f)
+                    val desiredLeft = (event.x - grabOffsetFromThumbStartPx)
+                        .coerceIn(trackRect.left, trackRect.right - thumbWidth)
+
+                    val progress = ((desiredLeft - trackRect.left) / usableRange).coerceIn(0.0f, 1.0f)
+                    var norm = (progress * 2.0f - 1.0f).coerceIn(-1.0f, 1.0f)
+                    if (isBipolarCenter && abs(norm) < 0.025f) {
+                        norm = 0.0f
+                    }
+                    currentNormalized = norm
                 }
 
-                val currentCoord = if (isVertical) event.y else event.x
-                val deltaPx = if (isVertical) {
-                    dragStartCoord - currentCoord // Para cima aumenta
-                } else {
-                    currentCoord - dragStartCoord // Para a direita aumenta
-                }
-
-                // Converte delta de pixels para faixa [-1.0, +1.0] (amplitude 2.0) com fator de suavidade
-                val deltaNorm = (deltaPx / usablePixels) * 2.0f * dragSensitivityFactor
-                var newTarget = (dragStartValue + deltaNorm).coerceIn(-1.0f, 1.0f)
-
-                // Pequena zona de encaixe central no Rudder (bipolar)
-                if (isBipolarCenter && abs(newTarget) < 0.025f) {
-                    newTarget = 0.0f
-                }
-
-                targetNormalized = newTarget
-                if (enableSmoothDamping) {
-                    scheduleSmoothStep()
-                } else {
-                    currentNormalized = targetNormalized
-                    onValueChanged?.invoke(currentNormalized)
-                    invalidate()
-                }
+                onValueChanged?.invoke(currentNormalized)
+                invalidate()
                 return true
             }
 
@@ -278,7 +308,6 @@ class ThickSliderView @JvmOverloads constructor(
                 if (isDraggingThumb) {
                     isDraggingThumb = false
                     if (returnToCenterOnRelease) {
-                        targetNormalized = 0.0f
                         currentNormalized = 0.0f
                         onValueChanged?.invoke(0.0f)
                     }
@@ -289,31 +318,6 @@ class ThickSliderView @JvmOverloads constructor(
             }
         }
         return super.onTouchEvent(event)
-    }
-
-    private fun scheduleSmoothStep() {
-        val diff = targetNormalized - currentNormalized
-        if (abs(diff) <= 0.002f) {
-            currentNormalized = targetNormalized
-            onValueChanged?.invoke(currentNormalized)
-            invalidate()
-            return
-        }
-
-        // Suavização leve para evitar saltos bruscos no Throttle
-        currentNormalized += diff * 0.30f
-        onValueChanged?.invoke(currentNormalized)
-        invalidate()
-
-        postOnAnimation {
-            if (abs(targetNormalized - currentNormalized) > 0.002f) {
-                scheduleSmoothStep()
-            } else {
-                currentNormalized = targetNormalized
-                onValueChanged?.invoke(currentNormalized)
-                invalidate()
-            }
-        }
     }
 
     fun getDisplayPercentage(): Int {

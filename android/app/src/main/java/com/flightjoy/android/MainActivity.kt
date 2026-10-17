@@ -252,12 +252,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupThickSlidersAndReverseSwitch() {
-        // Slider Esquerdo: Potência / Reverso (Vertical, suave, só move pelo quadradinho)
+        // Slider Esquerdo: Potência / Reverso (Vertical, acompanhamento 1:1 no quadradinho)
         sliderThrottle.apply {
             isVertical = true
             isBipolarCenter = false
-            enableSmoothDamping = true
-            dragSensitivityFactor = 0.85f
+            isInvertedVertical = false
             returnToCenterOnRelease = false
             onValueChanged = { normalized ->
                 val pct = (((normalized + 1.0f) * 0.5f) * 100.0f).roundToInt()
@@ -278,7 +277,8 @@ class MainActivity : AppCompatActivity() {
         updateReverseSwitchVisual()
         btnReverseSwitch.setOnClickListener {
             isReverseThrottleMode = !isReverseThrottleMode
-            // Ao alternar entre Throttle Normal e Modo Reverso, zera a alavanca para segurança
+            // No Modo Reverso, o quadradinho começa no TOPO (0%) e puxa para baixo até 100%
+            sliderThrottle.isInvertedVertical = isReverseThrottleMode
             controlState.throttle = -1.0f
             controlState.reverseThrottle = -1.0f
             sliderThrottle.setNormalizedValueImmediate(-1.0f)
@@ -289,8 +289,6 @@ class MainActivity : AppCompatActivity() {
         sliderRudder.apply {
             isVertical = false
             isBipolarCenter = true
-            enableSmoothDamping = false
-            dragSensitivityFactor = 0.90f
             returnToCenterOnRelease = config.rudderAutoCenter
             onValueChanged = { normalized ->
                 controlState.rudderSlider = normalized
