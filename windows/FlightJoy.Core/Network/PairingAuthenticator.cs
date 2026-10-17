@@ -150,6 +150,7 @@ public static class PairingAuthenticator
             return false;
 
         string expected = ComputeHmacSha256Hex(sessionKey, BuildPongCanonical(packet));
+        return ConstantTimeEqualsHex(packet.Mac, expected);
     }
 
     public static void SignDisconnect(FlightJoyPacket packet, string sessionKey)
