@@ -39,8 +39,18 @@ public partial class MainWindow : Window
         _viewModel = new MainViewModel(Dispatcher);
         DataContext = _viewModel;
         SourceInitialized += OnWindowSourceInitialized;
+        ContentRendered += OnWindowContentRendered;
         Closing += OnWindowClosing;
         Closed += OnWindowClosed;
+    }
+
+    private void OnWindowContentRendered(object? sender, EventArgs e)
+    {
+        if (App.IsSelfTestMode)
+        {
+            _allowFullExit = true;
+            Dispatcher.BeginInvoke(new Action(Close), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
     }
 
     private void OnWindowSourceInitialized(object? sender, EventArgs e)
