@@ -1,0 +1,561 @@
+<Window x:Class="FlightJoy.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FlightJoy — Receptor Windows vJoy"
+        Height="740"
+        Width="1040"
+        MinHeight="640"
+        MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgPrimary}"
+        Foreground="{StaticResource TextPrimary}">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Cabeçalho Principal -->
+        <Border Grid.Row="0"
+                Background="{StaticResource BgCard}"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16,12"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="FLIGHTJOY"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource AccentBlue}"
+                                   Margin="0,0,12,0"/>
+                        <TextBlock Text="Cliente Receptor Windows • vJoy 2.1.9.1"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondary}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <TextBlock Text="IP Local do PC (Wi-Fi/LAN): "
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="13"/>
+                        <TextBlock Text="{Binding LocalIpSummary}"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontWeight="SemiBold"
+                                   FontSize="13"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Controles Rápidos de Rede / Pareamento / vJoy -->
+                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <TextBlock Text="Porta UDP:"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,0,6,0"/>
+                        <TextBox Width="68"
+                                 Text="{Binding UdpPort, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="{StaticResource BgInput}"
+                                 Foreground="{StaticResource TextPrimary}"
+                                 BorderBrush="{StaticResource BorderSubtle}"
+                                 Padding="6,4"
+                                 VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <TextBlock Text="PIN Pareamento:"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,0,6,0"/>
+                        <TextBox Width="80"
+                                 Text="{Binding PairingPin, UpdateSourceTrigger=PropertyChanged}"
+                                 FontWeight="Bold"
+                                 FontSize="14"
+                                 Background="{StaticResource BgInput}"
+                                 Foreground="#38BDF8"
+                                 BorderBrush="{StaticResource BorderSubtle}"
+                                 Padding="6,4"
+                                 HorizontalContentAlignment="Center"
+                                 VerticalContentAlignment="Center"/>
+                        <Button Content="Novo PIN"
+                                Click="OnGeneratePinClick"
+                                Margin="6,0,0,0"
+                                Padding="10,5"
+                                Background="#334155"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Cursor="Hand"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <TextBlock Text="vJoy ID:"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,0,6,0"/>
+                        <ComboBox Width="56"
+                                  ItemsSource="{Binding AvailableDeviceIds}"
+                                  SelectedItem="{Binding VJoyDeviceId}"
+                                  VerticalContentAlignment="Center"/>
+                        <Button Content="Reconectar vJoy"
+                                Click="OnReconnectVJoyClick"
+                                Margin="6,0,0,0"
+                                Padding="10,5"
+                                Background="#334155"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Cursor="Hand"/>
+                    </StackPanel>
+
+                    <Button Content="{Binding ServerButtonText}"
+                            Click="OnToggleServerClick"
+                            Padding="14,6"
+                            FontWeight="SemiBold"
+                            Background="#0284C7"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Cursor="Hand"/>
+                </WrapPanel>
+            </Grid>
+        </Border>
+
+        <!-- Barra de Status Rápido -->
+        <Border Grid.Row="1"
+                Background="#131C31"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12,8"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Status Rede: "
+                               Foreground="{StaticResource TextSecondary}"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding ConnectionBadgeText}"
+                               Foreground="#38BDF8"
+                               FontWeight="Bold"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="Status Driver: "
+                               Foreground="{StaticResource TextSecondary}"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding VJoyBadgeText}"
+                               Foreground="#22C55E"
+                               FontWeight="SemiBold"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Abas Principais -->
+        <TabControl Grid.Row="2"
+                    Background="{StaticResource BgCard}"
+                    BorderBrush="{StaticResource BorderSubtle}">
+
+            <!-- ABA 1: Monitor de Eixos e Botões -->
+            <TabItem Header="  1. Monitor de Controles &amp; Calibração  ">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Barra de Calibração Rápida no PC -->
+                    <Border Grid.Row="0"
+                            Background="#0F172A"
+                            BorderBrush="{StaticResource BorderSubtle}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,8"
+                            Margin="0,0,0,12">
+                        <DockPanel>
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                <Button Content="Calibrar Centro Atual (Zero)"
+                                        Click="OnCalibrateCenterClick"
+                                        Padding="12,5"
+                                        Margin="0,0,8,0"
+                                        Background="#0284C7"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"/>
+                                <Button Content="Zerar Calibração / Neutralizar"
+                                        Click="OnResetCalibrationClick"
+                                        Padding="12,5"
+                                        Background="#475569"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CalibrationText}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="13"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Lista de Eixos em Tempo Real -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Axes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#0F172A"
+                                            BorderBrush="{StaticResource BorderSubtle}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="12,10"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="210"/>
+                                                <ColumnDefinition Width="95"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="110"/>
+                                                <ColumnDefinition Width="120"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding DisplayName}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#F8FAFC"
+                                                       VerticalAlignment="Center"/>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="vJoy: " Foreground="#94A3B8"/>
+                                                <TextBlock Text="{Binding TargetAxis}" Foreground="#38BDF8" FontWeight="Bold"/>
+                                            </StackPanel>
+
+                                            <ProgressBar Grid.Column="2"
+                                                         Minimum="0"
+                                                         Maximum="100"
+                                                         Value="{Binding ProcessedPercentBarValue, Mode=OneWay}"
+                                                         Height="16"
+                                                         Margin="10,0"
+                                                         Foreground="#38BDF8"
+                                                         Background="#1E293B"
+                                                         BorderBrush="#334155"/>
+
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding ProcessedPercentText}"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center"
+                                                       FontWeight="Bold"
+                                                       Foreground="#F8FAFC"/>
+
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="Raw: " Foreground="#94A3B8" FontSize="12"/>
+                                                <TextBlock Text="{Binding VJoyRawValue}" Foreground="#22C55E" FontWeight="SemiBold" FontSize="12"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Painel de Botões em Tempo Real -->
+                    <Border Grid.Row="2"
+                            Background="#0F172A"
+                            BorderBrush="{StaticResource BorderSubtle}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,10"
+                            Margin="0,8,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Botões Virtuais do Celular (B1 a B8):"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="12"
+                                       Margin="0,0,0,8"/>
+                            <ItemsControl ItemsSource="{Binding Buttons}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="4"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#1E293B"
+                                                BorderBrush="#334155"
+                                                BorderThickness="1"
+                                                CornerRadius="5"
+                                                Padding="8,6"
+                                                Margin="4">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right"
+                                                           Text="{Binding StateText}"
+                                                           FontWeight="Bold"
+                                                           Foreground="#38BDF8"
+                                                           FontSize="11"
+                                                           VerticalAlignment="Center"/>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding PhoneButtonTitle}"
+                                                               Foreground="#F8FAFC"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="12"/>
+                                                    <TextBlock Text="{Binding Label}"
+                                                               Foreground="#94A3B8"
+                                                               FontSize="11"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ABA 2: Mapeamento, Sensibilidade e Curvas -->
+            <TabItem Header="  2. Mapeamento, Sensibilidade &amp; Curvas  ">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Configuração de Eixos (Mapeamento vJoy, Sensibilidade, Zona Morta e Curva Exponencial)"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   Foreground="#38BDF8"
+                                   Margin="0,0,0,8"/>
+
+                        <ItemsControl ItemsSource="{Binding Axes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#0F172A"
+                                            BorderBrush="#334155"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="12,10"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="195"/>
+                                                <ColumnDefinition Width="105"/>
+                                                <ColumnDefinition Width="85"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding DisplayName}"
+                                                       Foreground="#F8FAFC"
+                                                       FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"/>
+
+                                            <StackPanel Grid.Column="1" Margin="4,0">
+                                                <TextBlock Text="Eixo vJoy" Foreground="#94A3B8" FontSize="11"/>
+                                                <ComboBox ItemsSource="{Binding DataContext.AvailableVJoyAxes, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          SelectedItem="{Binding TargetAxis}"
+                                                          Margin="0,2,0,0"/>
+                                            </StackPanel>
+
+                                            <CheckBox Grid.Column="2"
+                                                      Content="Inverter"
+                                                      IsChecked="{Binding Invert}"
+                                                      Foreground="#F8FAFC"
+                                                      VerticalAlignment="Center"
+                                                      Margin="8,0,0,0"/>
+
+                                            <StackPanel Grid.Column="3" Margin="6,0">
+                                                <DockPanel>
+                                                    <TextBlock Text="Sensib." Foreground="#94A3B8" FontSize="11"/>
+                                                    <TextBlock Text="{Binding SensitivityLabel}" Foreground="#38BDF8" FontSize="11" HorizontalAlignment="Right"/>
+                                                </DockPanel>
+                                                <Slider Minimum="0.1" Maximum="3.0" Value="{Binding Sensitivity}" TickFrequency="0.05"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="4" Margin="6,0">
+                                                <DockPanel>
+                                                    <TextBlock Text="Zona Morta" Foreground="#94A3B8" FontSize="11"/>
+                                                    <TextBlock Text="{Binding DeadzoneLabel}" Foreground="#38BDF8" FontSize="11" HorizontalAlignment="Right"/>
+                                                </DockPanel>
+                                                <Slider Minimum="0.0" Maximum="0.40" Value="{Binding Deadzone}" TickFrequency="0.01"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="5" Margin="6,0">
+                                                <DockPanel>
+                                                    <TextBlock Text="Curva Expo" Foreground="#94A3B8" FontSize="11"/>
+                                                    <TextBlock Text="{Binding ExponentialLabel}" Foreground="#38BDF8" FontSize="11" HorizontalAlignment="Right"/>
+                                                </DockPanel>
+                                                <Slider Minimum="0.0" Maximum="1.0" Value="{Binding Exponential}" TickFrequency="0.05"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="6" Margin="6,0">
+                                                <DockPanel>
+                                                    <TextBlock Text="Suavização" Foreground="#94A3B8" FontSize="11"/>
+                                                    <TextBlock Text="{Binding SmoothingLabel}" Foreground="#38BDF8" FontSize="11" HorizontalAlignment="Right"/>
+                                                </DockPanel>
+                                                <Slider Minimum="0.0" Maximum="0.85" Value="{Binding Smoothing}" TickFrequency="0.05"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="Mapeamento de Botões (Celular B1..B8 -> Botão vJoy 1..32)"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   Foreground="#38BDF8"
+                                   Margin="0,12,0,8"/>
+
+                        <ItemsControl ItemsSource="{Binding Buttons}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="2"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#0F172A"
+                                            BorderBrush="#334155"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="10,8"
+                                            Margin="4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130"/>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding PhoneButtonTitle}"
+                                                       Foreground="#F8FAFC"
+                                                       FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"/>
+                                            <ComboBox Grid.Column="1"
+                                                      ItemsSource="{Binding DataContext.AvailableVJoyButtons, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding TargetVJoyButton}"
+                                                      Margin="0,0,8,0"/>
+                                            <TextBox Grid.Column="2"
+                                                     Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"
+                                                     Background="#1E293B"
+                                                     Foreground="#F8FAFC"
+                                                     BorderBrush="#334155"
+                                                     Padding="6,3"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Configurações de Segurança / Watchdog e Ações -->
+                        <Border Background="#0F172A"
+                                BorderBrush="#334155"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12,10"
+                                Margin="0,12,0,0">
+                            <DockPanel>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                    <Button Content="Salvar Configurações"
+                                            Click="OnSaveConfigClick"
+                                            Padding="14,6"
+                                            Margin="0,0,8,0"
+                                            Background="#22C55E"
+                                            Foreground="#0F172A"
+                                            FontWeight="Bold"
+                                            BorderThickness="0"
+                                            Cursor="Hand"/>
+                                    <Button Content="Restaurar Padrão"
+                                            Click="OnRestoreDefaultsClick"
+                                            Padding="14,6"
+                                            Background="#475569"
+                                            Foreground="White"
+                                            BorderThickness="0"
+                                            Cursor="Hand"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Timeout Desconexão (Watchdog ms):"
+                                               Foreground="#94A3B8"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"/>
+                                    <TextBox Width="70"
+                                             Text="{Binding WatchdogTimeoutMs, UpdateSourceTrigger=PropertyChanged}"
+                                             Background="#1E293B"
+                                             Foreground="White"
+                                             BorderBrush="#334155"
+                                             Padding="6,3"
+                                             Margin="0,0,16,0"/>
+                                    <CheckBox Content="Fail-Safe: Neutralizar eixos automaticamente ao desconectar"
+                                              IsChecked="{Binding ResetAxesOnDisconnect}"
+                                              Foreground="#F8FAFC"
+                                              VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ABA 3: Logs de Diagnóstico -->
+            <TabItem Header="  3. Logs &amp; Diagnóstico  ">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                            <Button Content="Limpar Console"
+                                    Click="OnClearLogsClick"
+                                    Padding="12,5"
+                                    Margin="0,0,8,0"
+                                    Background="#334155"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    Cursor="Hand"/>
+                            <Button Content="Abrir Pasta de Logs"
+                                    Click="OnOpenLogsFolderClick"
+                                    Padding="12,5"
+                                    Background="#0284C7"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    Cursor="Hand"/>
+                        </StackPanel>
+                        <TextBlock Text="Eventos do Sistema, Pareamento Seguro e Integração vJoy:"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <ListBox Grid.Row="1"
+                             ItemsSource="{Binding Logs}"
+                             Background="#0B1120"
+                             Foreground="#E2E8F0"
+                             BorderBrush="#334155"
+                             FontFamily="Consolas"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Rodapé de Telemetria -->
+        <Border Grid.Row="3"
+                Background="#0B1120"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12,6"
+                Margin="0,10,0,0">
+            <TextBlock Text="{Binding TelemetryText}"
+                       Foreground="{StaticResource TextSecondary}"
+                       FontFamily="Consolas"
+                       FontSize="12"/>
+        </Border>
+    </Grid>
+</Window>

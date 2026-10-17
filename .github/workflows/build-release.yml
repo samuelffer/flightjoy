@@ -1,0 +1,215 @@
+name: FlightJoy CI — Build APK & Windows EXE
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Alvo de compilação (auto, both, android, windows)"
+        required: false
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - both
+          - android
+          - windows
+
+jobs:
+  detect-changes:
+    name: Detectar Componentes Modificados
+    runs-on: ubuntu-latest
+    outputs:
+      build_android: ${{ steps.filter.outputs.build_android }}
+      build_windows: ${{ steps.filter.outputs.build_windows }}
+      bundle_mode: ${{ steps.filter.outputs.bundle_mode }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Avaliar arquivos modificados
+        id: filter
+        run: |
+          TARGET_INPUT="${{ github.event.inputs.target }}"
+          if [ "$TARGET_INPUT" = "both" ]; then
+            echo "build_android=true" >> $GITHUB_OUTPUT
+            echo "build_windows=true" >> $GITHUB_OUTPUT
+            echo "bundle_mode=both" >> $GITHUB_OUTPUT
+            exit 0
+          elif [ "$TARGET_INPUT" = "android" ]; then
+            echo "build_android=true" >> $GITHUB_OUTPUT
+            echo "build_windows=false" >> $GITHUB_OUTPUT
+            echo "bundle_mode=android-only" >> $GITHUB_OUTPUT
+            exit 0
+          elif [ "$TARGET_INPUT" = "windows" ]; then
+            echo "build_android=false" >> $GITHUB_OUTPUT
+            echo "build_windows=true" >> $GITHUB_OUTPUT
+            echo "bundle_mode=windows-only" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          BEFORE_SHA="${{ github.event.before }}"
+          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            echo "Push inicial na branch ou commit anterior indisponível -> compilando AMBOS."
+            echo "build_android=true" >> $GITHUB_OUTPUT
+            echo "build_windows=true" >> $GITHUB_OUTPUT
+            echo "bundle_mode=both" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          CHANGED_FILES=$(git diff --name-only "$BEFORE_SHA" "${{ github.sha }}")
+          echo "Arquivos alterados:"
+          echo "$CHANGED_FILES"
+
+          ANDROID_CHANGED=false
+          WINDOWS_CHANGED=false
+          WORKFLOW_CHANGED=false
+
+          if echo "$CHANGED_FILES" | grep -q "^android/"; then
+            ANDROID_CHANGED=true
+          fi
+          if echo "$CHANGED_FILES" | grep -q "^windows/"; then
+            WINDOWS_CHANGED=true
+          fi
+          if echo "$CHANGED_FILES" | grep -q "^.github/workflows/"; then
+            WORKFLOW_CHANGED=true
+          fi
+
+          if [ "$WORKFLOW_CHANGED" = "true" ] || { [ "$ANDROID_CHANGED" = "false" ] && [ "$WINDOWS_CHANGED" = "false" ]; }; then
+            ANDROID_CHANGED=true
+            WINDOWS_CHANGED=true
+          fi
+
+          echo "build_android=$ANDROID_CHANGED" >> $GITHUB_OUTPUT
+          echo "build_windows=$WINDOWS_CHANGED" >> $GITHUB_OUTPUT
+
+          if [ "$ANDROID_CHANGED" = "true" ] && [ "$WINDOWS_CHANGED" = "true" ]; then
+            echo "bundle_mode=both" >> $GITHUB_OUTPUT
+          elif [ "$ANDROID_CHANGED" = "true" ]; then
+            echo "bundle_mode=android-only" >> $GITHUB_OUTPUT
+          else
+            echo "bundle_mode=windows-only" >> $GITHUB_OUTPUT
+          fi
+
+  build-android:
+    name: Compilar & Testar Android APK
+    needs: detect-changes
+    if: needs.detect-changes.outputs.build_android == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Configurar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Executar Testes Unitários Android (JUnit)
+        run: gradle -p android testDebugUnitTest --no-daemon
+
+      - name: Compilar APK Debug
+        run: gradle -p android assembleDebug --no-daemon
+
+      - name: Preparar APK para Pacote
+        run: |
+          mkdir -p dist-android
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist-android/FlightJoy-Android-debug.apk
+
+      - name: Upload Artefato Interno Android
+        uses: actions/upload-artifact@v4
+        with:
+          name: internal-android-apk
+          path: dist-android/
+          if-no-files-found: error
+
+  build-windows:
+    name: Compilar & Testar Cliente Windows (.exe)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.build_windows == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Executar Testes Unitários Windows (xUnit)
+        run: dotnet test windows/FlightJoy.Tests/FlightJoy.Tests.csproj -c Release --verbosity normal
+
+      - name: Publicar Cliente Windows (win-x64)
+        run: |
+          dotnet publish windows/FlightJoy.Windows/FlightJoy.Windows.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -p:PublishSingleFile=true `
+            -p:DebugType=embedded `
+            -o dist-windows
+
+      - name: Upload Artefato Interno Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: internal-windows-exe
+          path: dist-windows/
+          if-no-files-found: error
+
+  package-bundle:
+    name: Gerar Pacote ZIP Final
+    needs: [detect-changes, build-android, build-windows]
+    if: |
+      always() &&
+      (needs.build-android.result == 'success' || needs.build-android.result == 'skipped') &&
+      (needs.build-windows.result == 'success' || needs.build-windows.result == 'skipped') &&
+      (needs.build-android.result == 'success' || needs.build-windows.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout README
+        uses: actions/checkout@v4
+
+      - name: Baixar APK Android (se compilado)
+        if: needs.detect-changes.outputs.build_android == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: internal-android-apk
+          path: package_root/Android
+
+      - name: Baixar Cliente Windows (se compilado)
+        if: needs.detect-changes.outputs.build_windows == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: internal-windows-exe
+          path: package_root/Windows
+
+      - name: Montar Arquivo ZIP Unificado
+        run: |
+          mkdir -p package_root
+          cp README.md package_root/README.md
+          MODE="${{ needs.detect-changes.outputs.bundle_mode }}"
+          cd package_root
+          zip -r "../FlightJoy-${MODE}.zip" .
+          cd ..
+          mkdir -p final_upload
+          cp "FlightJoy-${MODE}.zip" final_upload/
+          cp -r package_root/* final_upload/
+
+      - name: Publicar Artefato Final (FlightJoy-Package)
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlightJoy-Package-${{ needs.detect-changes.outputs.bundle_mode }}
+          path: final_upload/
+          if-no-files-found: error
