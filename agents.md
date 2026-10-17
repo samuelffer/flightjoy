@@ -1,6 +1,6 @@
 # Diretrizes do Agente — FlightJoy (`agents.md`)
 
-Este documento define o padrão obrigatório de desenvolvimento, arquitetura, testes e empacotamento (CI/CD via GitHub Actions) para todas as alterações no projeto **FlightJoy**.
+Este documento define o padrão obrigatório de desenvolvimento, arquitetura, testes, empacotamento (CI/CD via GitHub Actions) e entrega de links de download para todas as alterações no projeto **FlightJoy**.
 
 ---
 
@@ -19,12 +19,18 @@ Sempre que o usuário solicitar uma nova funcionalidade, correção ou ajuste, s
 4. **Testes Automatizados**:
    - Qualquer alteração no protocolo, criptografia de pareamento, curvas de sensibilidade, calibração ou watchdog deve manter e atualizar os testes unitários em `windows/FlightJoy.Tests` (xUnit) e `android/app/src/test` (JUnit).
 5. **Regra do Pacote `.zip` no GitHub Actions**:
-   - O workflow `.github/workflows/build-release.yml` compila e gera um artefato `.zip` pronto para teste:
-     - **Alteração em ambos (`android/` e `windows/`) ou build inicial/completo**: O `.zip` final (`FlightJoy-Bundle.zip`) **deve conter ambos** (`Android/FlightJoy-debug.apk` e `Windows/FlightJoy.Windows.exe` + arquivos necessários).
-     - **Alteração apenas no Android (`android/`)**: O workflow compila apenas o Android e o `.zip` final contém **apenas o APK modificado**, sem recompilar nem incluir desnecessariamente o cliente Windows.
-     - **Alteração apenas no Windows (`windows/`)**: O workflow compila apenas o Windows e o `.zip` final contém **apenas o `.exe` + arquivos necessários modificados**, sem recompilar nem incluir desnecessariamente o APK Android.
-   - Sempre faça commit e push na branch de testes ativa para disparar o GitHub Actions e valide que a execução (`gh run list` / `gh run view`) concluiu com sucesso.
-6. **Documentação de Dependências (`README.md`)**:
+   - O workflow `.github/workflows/build-release.yml` compila e gera os artefatos `.zip` prontos para teste:
+     - **Alteração em ambos (`android/` e `windows/`) ou build completo**: O `.zip` principal (`FlightJoy-Package-both`) **deve conter ambos** (`Android/FlightJoy-Android-debug.apk` e `Windows/FlightJoy.Windows.exe`), além dos artefatos individuais (`FlightJoy-Android-Only` e `FlightJoy-Windows-Only`).
+     - **Alteração apenas no Android (`android/`)**: O workflow compila apenas o Android e gera o `.zip` contendo **apenas o APK modificado** (`FlightJoy-Package-android-only`), sem recompilar nem incluir desnecessariamente o cliente Windows.
+     - **Alteração apenas no Windows (`windows/`)**: O workflow compila apenas o Windows e gera o `.zip` contendo **apenas o `.exe` modificado** (`FlightJoy-Package-windows-only`), sem recompilar nem incluir desnecessariamente o APK Android.
+6. **REGRA OBRIGATÓRIA: Sempre Fornecer o Link Pronto para Download na Resposta**:
+   - Após aguardar a conclusão do workflow no GitHub Actions (`gh run watch`), o agente **DEVE obrigatoriamente** consultar os IDs dos artefatos gerados via API (`gh api repos/samuelffer/flightjoy/actions/runs/<RUN_ID>/artifacts`) e entregar ao usuário na resposta os **links diretos prontos para download (clique único)**:
+     - Link direto do `.zip` no GitHub Actions: `https://github.com/samuelffer/flightjoy/actions/runs/<RUN_ID>/artifacts/<ARTIFACT_ID>`
+     - Link direto na Release de Testes (quando aplicável): `https://github.com/samuelffer/flightjoy/releases/download/latest-build/<ARQUIVO>.zip`
+   - Sempre forneça claramente:
+     - O link direto do `.zip` com **ambos** (quando ambos forem gerados) **e/ou** os links diretos do `.zip` individual (**só Android** / **só Windows**, e vice-versa, conforme o que foi compilado na execução).
+     - Nunca entregue apenas o link genérico do repositório; entregue sempre a URL exata do artefato `.zip` pronta para clicar e baixar.
+7. **Documentação de Dependências (`README.md`)**:
    - Sempre que uma nova biblioteca ou requisito de sistema no PC ou Android for adicionado, atualize imediatamente a seção de dependências do `README.md`.
 
 ---

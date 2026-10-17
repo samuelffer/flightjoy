@@ -18,6 +18,10 @@ on:
           - android
           - windows
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   detect-changes:
     name: Detectar Componentes Modificados
@@ -127,10 +131,10 @@ jobs:
           mkdir -p dist-android
           cp android/app/build/outputs/apk/debug/app-debug.apk dist-android/FlightJoy-Android-debug.apk
 
-      - name: Upload Artefato Interno Android
+      - name: Upload Artefato Individual Android (ZIP)
         uses: actions/upload-artifact@v4
         with:
-          name: internal-android-apk
+          name: FlightJoy-Android-Only
           path: dist-android/
           if-no-files-found: error
 
@@ -172,10 +176,10 @@ jobs:
             exit $LASTEXITCODE
           }
 
-      - name: Upload Artefato Interno Windows
+      - name: Upload Artefato Individual Windows (ZIP)
         uses: actions/upload-artifact@v4
         with:
-          name: internal-windows-exe
+          name: FlightJoy-Windows-Only
           path: dist-windows/
           if-no-files-found: error
 
@@ -196,31 +200,46 @@ jobs:
         if: needs.detect-changes.outputs.build_android == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: internal-android-apk
+          name: FlightJoy-Android-Only
           path: package_root/Android
 
       - name: Baixar Cliente Windows (se compilado)
         if: needs.detect-changes.outputs.build_windows == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: internal-windows-exe
+          name: FlightJoy-Windows-Only
           path: package_root/Windows
 
-      - name: Montar Arquivo ZIP Unificado
+      - name: Montar Arquivos ZIP para Release
         run: |
-          mkdir -p package_root
+          mkdir -p package_root release_zips
           cp README.md package_root/README.md
           MODE="${{ needs.detect-changes.outputs.bundle_mode }}"
-          cd package_root
-          zip -r "../FlightJoy-${MODE}.zip" .
-          cd ..
-          mkdir -p final_upload
-          cp "FlightJoy-${MODE}.zip" final_upload/
-          cp -r package_root/* final_upload/
+          (cd package_root && zip -r "../release_zips/FlightJoy-${MODE}.zip" .)
+          if [ -d "package_root/Android" ]; then
+            (cd package_root/Android && zip -r "../../release_zips/FlightJoy-android-only.zip" .)
+          fi
+          if [ -d "package_root/Windows" ]; then
+            (cd package_root/Windows && zip -r "../../release_zips/FlightJoy-windows-only.zip" .)
+          fi
 
-      - name: Publicar Artefato Final (FlightJoy-Package)
+      - name: Publicar Artefato Principal no GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: FlightJoy-Package-${{ needs.detect-changes.outputs.bundle_mode }}
-          path: final_upload/
+          path: package_root/
           if-no-files-found: error
+
+      - name: Publicar Links Diretos no GitHub Releases (tag latest-build)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="latest-build"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" release_zips/*.zip \
+              --title "FlightJoy — Build de Testes (${{ github.ref_name }})" \
+              --notes "Pacotes ZIP gerados automaticamente pelo GitHub Actions no commit ${{ github.sha }}." \
+              --prerelease
+          else
+            gh release upload "$TAG" release_zips/*.zip --clobber
+          fi
