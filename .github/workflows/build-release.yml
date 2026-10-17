@@ -151,22 +151,24 @@ jobs:
       - name: Executar Testes Unitários Windows (xUnit)
         shell: pwsh
         run: |
-          $output = dotnet test windows/FlightJoy.Tests/FlightJoy.Tests.csproj -c Release --verbosity normal 2>&1 | Out-String
-          Write-Host $output
+          $lines = dotnet test windows/FlightJoy.Tests/FlightJoy.Tests.csproj -c Release --verbosity minimal 2>&1
+          $lines | ForEach-Object { Write-Host $_ }
           if ($LASTEXITCODE -ne 0) {
-            $escaped = $output -replace "`r", "" -replace "`n", "%0A"
-            Write-Host "::error title=Falha nos Testes Windows::$escaped"
+            $tail = ($lines | Select-Object -Last 35) -join "%0A"
+            $tail = $tail -replace "`r", ""
+            Write-Host "::error title=Falha nos Testes Windows::$tail"
             exit $LASTEXITCODE
           }
 
       - name: Publicar Cliente Windows (win-x64)
         shell: pwsh
         run: |
-          $output = dotnet publish windows/FlightJoy.Windows/FlightJoy.Windows.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=embedded -o dist-windows 2>&1 | Out-String
-          Write-Host $output
+          $lines = dotnet publish windows/FlightJoy.Windows/FlightJoy.Windows.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=embedded --verbosity minimal -o dist-windows 2>&1
+          $lines | ForEach-Object { Write-Host $_ }
           if ($LASTEXITCODE -ne 0) {
-            $escaped = $output -replace "`r", "" -replace "`n", "%0A"
-            Write-Host "::error title=Falha no Publish Windows::$escaped"
+            $tail = ($lines | Select-Object -Last 35) -join "%0A"
+            $tail = $tail -replace "`r", ""
+            Write-Host "::error title=Falha no Publish Windows::$tail"
             exit $LASTEXITCODE
           }
 
