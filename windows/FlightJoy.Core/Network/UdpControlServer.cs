@@ -85,7 +85,7 @@ public sealed class UdpControlServer : IDisposable
             const int SIO_UDP_CONNRESET = -1744830452;
             try
             {
-                _udpClient.Client.IOControl((IOControlCode)SIO_UDP_CONNRESET, [0, 0, 0, 0], null);
+                _udpClient.Client.IOControl(SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
             }
             catch
             {
