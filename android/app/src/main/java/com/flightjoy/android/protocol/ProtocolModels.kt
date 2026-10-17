@@ -9,6 +9,10 @@ object ProtocolConstants {
     const val AXIS_SCALE = 10000
     const val MAX_BUTTONS = 8
 
+    const val TYPE_DISCOVER = "DISCOVER"
+    const val TYPE_DISCOVER_REPLY = "DISCOVER_REPLY"
+    const val TYPE_HELLO = "HELLO"
+    const val TYPE_WELCOME = "WELCOME"
     const val TYPE_PAIR_REQ = "PAIR_REQ"
     const val TYPE_PAIR_ACK = "PAIR_ACK"
     const val TYPE_PAIR_ERR = "PAIR_ERR"
@@ -30,6 +34,12 @@ data class FlightJoyPacket(
 
     @SerializedName("deviceName")
     var deviceName: String? = null,
+
+    @SerializedName("pcName")
+    var pcName: String? = null,
+
+    @SerializedName("port")
+    var port: Int = 0,
 
     @SerializedName("clientNonce")
     var clientNonce: String? = null,
@@ -66,6 +76,18 @@ data class FlightJoyPacket(
 
     @SerializedName("b")
     var buttonsMask: Int = 0,
+
+    @SerializedName("mp")
+    var mapPitch: String? = null,
+
+    @SerializedName("mr")
+    var mapRoll: String? = null,
+
+    @SerializedName("my")
+    var mapRudder: String? = null,
+
+    @SerializedName("mt")
+    var mapThrottle: String? = null,
 
     @SerializedName("mac")
     var mac: String? = null

@@ -1,4 +1,5 @@
 using System.Net;
+using FlightJoy.Core.Audio;
 using FlightJoy.Core.Config;
 using FlightJoy.Core.Control;
 using FlightJoy.Core.Logging;
@@ -12,29 +13,38 @@ namespace FlightJoy.Tests;
 public sealed class PairingAuthenticatorTests
 {
     [Fact]
-    public void PairReqVerification_ValidPinSucceeds_WrongPinFails()
+    public void DiscoverRequest_ReturnsDiscoverReplyWithMachineName()
     {
-        const string pin = "482910";
-        var req = new FlightJoyPacket
+        var config = new AppConfig();
+        var logger = new FlightLogger();
+        var feeder = new MockVJoyFeeder();
+        feeder.Acquire(1);
+        var pipeline = new ControlPipeline(config);
+        using var server = new UdpControlServer(config, pipeline, feeder, logger);
+
+        var remoteEp = new IPEndPoint(IPAddress.Loopback, 55000);
+        var discoverReq = new FlightJoyPacket
         {
             Version = 1,
-            Type = ProtocolConstants.TypePairReq,
-            DeviceId = "pixel-8-id",
-            DeviceName = "Pixel 8",
-            ClientNonce = "0011223344556677",
-            TimestampMs = 1729180000000
+            Type = ProtocolConstants.TypeDiscover,
+            DeviceId = "android-01",
+            TimestampMs = 1000
         };
 
-        PairingAuthenticator.SignPairReq(req, pin);
+        FlightJoyPacket? reply = server.ProcessDatagram(
+            PacketSerializer.SerializeToUtf8Bytes(discoverReq),
+            remoteEp,
+            nowTickMs: 1000);
 
-        Assert.True(PairingAuthenticator.VerifyPairReq(req, pin));
-        Assert.False(PairingAuthenticator.VerifyPairReq(req, "999999"));
+        Assert.NotNull(reply);
+        Assert.Equal(ProtocolConstants.TypeDiscoverReply, reply.Type);
+        Assert.False(string.IsNullOrWhiteSpace(reply.PcName));
     }
 
     [Fact]
-    public void FullHandshakeAndStatePacket_EndToEndThroughUdpControlServer()
+    public void DirectHelloAndPhoneMappedState_UpdatesVJoyAxesAndButtons()
     {
-        var config = new AppConfig { PairingPin = "654321" };
+        var config = new AppConfig();
         var logger = new FlightLogger();
         var feeder = new MockVJoyFeeder();
         feeder.Acquire(1);
@@ -43,50 +53,42 @@ public sealed class PairingAuthenticatorTests
 
         var remoteEp = new IPEndPoint(IPAddress.Loopback, 55000);
 
-        // 1. Envia PAIR_REQ assinado com PIN correto
-        var pairReq = new FlightJoyPacket
+        var hello = new FlightJoyPacket
         {
             Version = 1,
-            Type = ProtocolConstants.TypePairReq,
+            Type = ProtocolConstants.TypeHello,
             DeviceId = "android-test-01",
             DeviceName = "Galaxy S23",
-            ClientNonce = "aabbccddeeff0011",
             TimestampMs = 1000
         };
-        PairingAuthenticator.SignPairReq(pairReq, "654321");
 
-        FlightJoyPacket? pairAck = server.ProcessDatagram(
-            PacketSerializer.SerializeToUtf8Bytes(pairReq),
+        FlightJoyPacket? welcome = server.ProcessDatagram(
+            PacketSerializer.SerializeToUtf8Bytes(hello),
             remoteEp,
             nowTickMs: 1000);
 
-        Assert.NotNull(pairAck);
-        Assert.Equal(ProtocolConstants.TypePairAck, pairAck.Type);
-        Assert.True(PairingAuthenticator.VerifyPairAck(pairAck, "654321"));
-        Assert.NotNull(pairAck.SessionId);
+        Assert.NotNull(welcome);
+        Assert.Equal(ProtocolConstants.TypeWelcome, welcome.Type);
+        Assert.NotNull(welcome.SessionId);
 
-        // 2. Deriva chave de sessão e envia STATE
-        string sessionKey = PairingAuthenticator.DeriveSessionKey(
-            "654321",
-            pairReq.DeviceId!,
-            pairReq.ClientNonce!,
-            pairAck.SessionId!);
-
+        // Envia STATE com mapeamento exclusivo vindo do celular (ex:Botão vJoy 12 ativo)
         var statePacket = new FlightJoyPacket
         {
             Version = 1,
             Type = ProtocolConstants.TypeState,
-            SessionId = pairAck.SessionId,
+            SessionId = welcome.SessionId,
             Sequence = 1,
             TimestampMs = 1016,
-            PitchScaled = 10000, // +1.0
-            RollScaled = -10000, // -1.0
-            YawScaled = 0,
-            ThrottleScaled = 5000,
-            AuxScaled = 0,
-            ButtonsMask = 0b0000_0101 // Botões 1 e 3
+            PitchScaled = 10000,   // +1.0
+            RollScaled = -10000,   // -1.0
+            YawScaled = 5000,      // +0.5 Rudder
+            ThrottleScaled = 8000, // +0.8 Throttle
+            MapPitch = "Y",
+            MapRoll = "X",
+            MapRudder = "RZ",
+            MapThrottle = "Z",
+            ButtonsMask = (1 << 0) | (1 << 11) // Botão vJoy 1 e Botão vJoy 12
         };
-        PairingAuthenticator.SignState(statePacket, sessionKey);
 
         server.ProcessDatagram(
             PacketSerializer.SerializeToUtf8Bytes(statePacket),
@@ -95,8 +97,24 @@ public sealed class PairingAuthenticatorTests
 
         Assert.True(feeder.GetLastButtonState(1));
         Assert.False(feeder.GetLastButtonState(2));
-        Assert.True(feeder.GetLastButtonState(3));
-        Assert.True(feeder.GetLastRawAxisValue(VJoyAxisUsage.Y) > MockVJoyFeeder.DefaultCenter);
-        Assert.True(feeder.GetLastRawAxisValue(VJoyAxisUsage.X) < MockVJoyFeeder.DefaultCenter);
+        Assert.True(feeder.GetLastButtonState(12));
+        Assert.Equal(MockVJoyFeeder.DefaultMax, feeder.GetLastRawAxisValue(VJoyAxisUsage.Y));
+        Assert.Equal(MockVJoyFeeder.DefaultMin, feeder.GetLastRawAxisValue(VJoyAxisUsage.X));
+        Assert.True(feeder.GetLastRawAxisValue(VJoyAxisUsage.RZ) > MockVJoyFeeder.DefaultCenter);
+        Assert.True(feeder.GetLastRawAxisValue(VJoyAxisUsage.Z) > MockVJoyFeeder.DefaultCenter);
+    }
+
+    [Fact]
+    public void SoundNotifier_BuildsValidRiffWaveHeaders()
+    {
+        byte[] connWav = SoundNotifier.BuildConnectedSingleChimeWav();
+        byte[] discWav = SoundNotifier.BuildDisconnectedDoubleToneWav();
+
+        Assert.True(connWav.Length > 44);
+        Assert.True(discWav.Length > connWav.Length);
+        Assert.Equal((byte)'R', connWav[0]);
+        Assert.Equal((byte)'I', connWav[1]);
+        Assert.Equal((byte)'F', connWav[2]);
+        Assert.Equal((byte)'F', connWav[3]);
     }
 }

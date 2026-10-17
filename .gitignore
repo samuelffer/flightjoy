@@ -28,3 +28,5 @@ captures/
 .DS_Store
 Thumbs.db
 *.zip
+!Zips/
+!Zips/*.zip

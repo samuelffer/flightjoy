@@ -1,66 +1,37 @@
 # Diretrizes do Agente — FlightJoy (`agents.md`)
 
-Este documento define o padrão obrigatório de desenvolvimento, arquitetura, testes, empacotamento (CI/CD via GitHub Actions) e entrega de links de download para todas as alterações no projeto **FlightJoy**.
+Este documento define o padrão obrigatório de desenvolvimento, arquitetura, interface, empacotamento na pasta `Zips/` e entrega do link direto de download para todas as alterações no projeto **FlightJoy**.
 
 ---
 
-## 1. Regras de Ouro a Cada Nova Alteração
+## 1. Regras Obrigatórias a Cada Nova Alteração
 
-Sempre que o usuário solicitar uma nova funcionalidade, correção ou ajuste, siga rigorosamente este fluxo:
+1. **Pasta `Zips/` no Próprio Repositório (Sem criar GitHub Releases)**:
+   - **Nunca** crie GitHub Releases ou tags a cada build.
+   - O repositório possui a pasta **`Zips/`** contendo **um único arquivo `.zip` unificado**: `Zips/FlightJoy.zip` (com `Android/FlightJoy-Android-debug.apk` e `Windows/FlightJoy.Windows.exe` dentro).
+   - **Otimização de Tempo no GitHub Actions**:
+     - Se a demanda exigir mexer nos **dois programas** (ex.: mudança de protocolo ou pedido que afete PC e celular), o workflow compila **ambos** e gera o `Zips/FlightJoy.zip` atualizado.
+     - Se a demanda exigir mexer **apenas no Android**, o workflow compila **apenas o APK** (ganhando tempo) e atualiza o `Zips/FlightJoy.zip` (mantendo o `.exe` já existente na pasta `Zips/` junto com o novo `.apk`).
+     - Se a demanda exigir mexer **apenas no Windows**, o workflow compila **apenas o `.exe`** (ganhando tempo) e atualiza o `Zips/FlightJoy.zip` (mantendo o `.apk` já existente na pasta `Zips/` junto com o novo `.exe`).
+   - O próprio workflow faz commit e push automático do `Zips/FlightJoy.zip` atualizado para a branch (`[skip ci]`), e o agente deve fazer `git pull` após o término da Action para manter o workspace sincronizado.
 
-1. **Não invente APIs**:
-   - **Windows / vJoy**: Utilize exclusivamente a API nativa oficial exportada pela `vJoyInterface.dll` (SDK vJoy 2.1.9.1: `vJoyEnabled`, `GetvJoyVersion`, `DriverMatch`, `GetVJDStatus`, `AcquireVJD`, `RelinquishVJD`, `ResetVJD`, `ResetButtons`, `SetAxis`, `SetBtn`, `GetVJDAxisExist`, `GetVJDAxisMin`, `GetVJDAxisMax`, `HID_USAGE_X..SL1`).
-   - **Android**: Utilize exclusivamente as APIs oficiais do Android SDK (`SensorManager`, `Sensor.TYPE_GAME_ROTATION_VECTOR` / `Sensor.TYPE_ROTATION_VECTOR`, `SensorManager.getRotationMatrixFromVector`, `DatagramSocket`, `SharedPreferences`).
-2. **Arquitetura Modular (Proibido Código Monolítico)**:
-   - Nunca concentre toda a lógica em um único arquivo.
-   - Mantenha a separação de responsabilidades entre **Protocolo**, **Rede/Segurança**, **Processamento de Controle/Calibração**, **Integração vJoy / Sensores**, **Configuração**, **Logs** e **Interface (UI)**.
-3. **Não embutir o instalador do driver vJoy**:
-   - O usuário já possui o driver **vJoy 2.1.9.1** instalado no Windows. O cliente Windows localiza automaticamente a `vJoyInterface.dll` instalada pelo próprio vJoy (via Registro do Windows `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{8E31F76F-74C3-47F1-9550-E041EEDC5FBB}_is1` ou `C:\Program Files\vJoy\x64\vJoyInterface.dll`, com fallback para o diretório local do `.exe`).
-4. **Testes Automatizados**:
-   - Qualquer alteração no protocolo, criptografia de pareamento, curvas de sensibilidade, calibração ou watchdog deve manter e atualizar os testes unitários em `windows/FlightJoy.Tests` (xUnit) e `android/app/src/test` (JUnit).
-5. **Regra do Pacote `.zip` no GitHub Actions**:
-   - O workflow `.github/workflows/build-release.yml` compila e gera os artefatos `.zip` prontos para teste:
-     - **Alteração em ambos (`android/` e `windows/`) ou build completo**: O `.zip` principal (`FlightJoy-Package-both`) **deve conter ambos** (`Android/FlightJoy-Android-debug.apk` e `Windows/FlightJoy.Windows.exe`), além dos artefatos individuais (`FlightJoy-Android-Only` e `FlightJoy-Windows-Only`).
-     - **Alteração apenas no Android (`android/`)**: O workflow compila apenas o Android e gera o `.zip` contendo **apenas o APK modificado** (`FlightJoy-Package-android-only`), sem recompilar nem incluir desnecessariamente o cliente Windows.
-     - **Alteração apenas no Windows (`windows/`)**: O workflow compila apenas o Windows e gera o `.zip` contendo **apenas o `.exe` modificado** (`FlightJoy-Package-windows-only`), sem recompilar nem incluir desnecessariamente o APK Android.
-6. **REGRA OBRIGATÓRIA: Sempre Fornecer o Link Pronto para Download na Resposta**:
-   - Após aguardar a conclusão do workflow no GitHub Actions (`gh run watch`), o agente **DEVE obrigatoriamente** consultar os IDs dos artefatos gerados via API (`gh api repos/samuelffer/flightjoy/actions/runs/<RUN_ID>/artifacts`) e entregar ao usuário na resposta os **links diretos prontos para download (clique único)**:
-     - Link direto do `.zip` no GitHub Actions: `https://github.com/samuelffer/flightjoy/actions/runs/<RUN_ID>/artifacts/<ARTIFACT_ID>`
-     - Link direto na Release de Testes (quando aplicável): `https://github.com/samuelffer/flightjoy/releases/download/latest-build/<ARQUIVO>.zip`
-   - Sempre forneça claramente:
-     - O link direto do `.zip` com **ambos** (quando ambos forem gerados) **e/ou** os links diretos do `.zip` individual (**só Android** / **só Windows**, e vice-versa, conforme o que foi compilado na execução).
-     - Nunca entregue apenas o link genérico do repositório; entregue sempre a URL exata do artefato `.zip` pronta para clicar e baixar.
-7. **Documentação de Dependências (`README.md`)**:
-   - Sempre que uma nova biblioteca ou requisito de sistema no PC ou Android for adicionado, atualize imediatamente a seção de dependências do `README.md`.
+2. **REGRA OBRIGATÓRIA: Sempre Fornecer o Link Pronto para Download**:
+   - Ao concluir qualquer alteração e aguardar o GitHub Actions finalizar com sucesso, **sempre forneça o link direto pronto para download (1 clique)** do arquivo na pasta `Zips/`:
+     - 👉 `https://github.com/samuelffer/flightjoy/raw/arena/b556b42d-flightjoy/Zips/FlightJoy.zip`
+     - E também o link do artefato da execução no GitHub Actions (`https://github.com/samuelffer/flightjoy/actions/runs/<RUN_ID>/artifacts/<ARTIFACT_ID>`).
 
----
-
-## 2. Estrutura Modular do Repositório
-
-```text
-flightjoy/
-├── agents.md                        # Este arquivo de regras contínuas do projeto
-├── README.md                        # Guia de instalação, dependências no PC, MVP vs Futuro e uso
-├── docs/
-│   ├── ARCHITECTURE.md              # Visão arquitetural e decisões técnicas
-│   └── PROTOCOL.md                  # Especificação do protocolo UDP FlightJoy v1
-├── .github/workflows/
-│   └── build-release.yml            # Pipeline condicional (Android / Windows / Ambos -> ZIP)
-├── windows/
-│   ├── FlightJoy.sln                # Solution .NET 8
-│   ├── FlightJoy.Core/              # Núcleo de domínio (Protocol, Network, Control, Config, Logging, VJoy)
-│   ├── FlightJoy.Windows/           # Interface WPF minimalista (.NET 8 Windows x64)
-│   └── FlightJoy.Tests/             # Testes unitários xUnit
-└── android/
-    ├── app/src/main/                # App Android Kotlin (sensor, protocol, network, control, config, ui)
-    └── app/src/test/                # Testes unitários JUnit
-```
-
----
-
-## 3. Compatibilidade de Protocolo (Android <-> Windows)
-
-- **Porta padrão**: UDP `49152` (configurável).
-- **Segurança**: Handshake `PAIR_REQ` / `PAIR_ACK` autenticado com PIN de 6 dígitos via `HMAC-SHA256`, derivando chave de sessão exclusiva (`sessionKey`) sem trafegar o PIN em texto aberto.
-- **Representação de Eixos na Rede**: Valores inteiros escalados em `[-10000, +10000]` (equivalentes a `[-1.0000, +1.0000]`), prevenindo erros de formatação decimal regional (`pt-BR` vírgula vs ponto) no cálculo do `HMAC-SHA256`.
-- **Fail-safe de Desconexão**: Watchdog configurável (padrão `1000 ms`) que neutraliza eixos e botões do vJoy caso a transmissão seja interrompida.
+3. **Diretrizes de Produto e Interface**:
+   - **Tema Visual**: Paleta monocromática minimalista em **Preto, Branco e Cinza** (`#0A0A0A`, `#161616`, `#262626`, `#9E9E9E`, `#FFFFFF`), sem poluição visual.
+   - **Sem Sistema de PIN**: Conexão direta sem PIN, com **Busca Rápida (botão de lupa 🔍)** no celular via UDP Broadcast que localiza automaticamente o PC na mesma rede e exibe um Toast com o nome do desktop encontrado.
+   - **Configuração Exclusiva no Celular**: Todo o mapeamento de eixos vJoy, mapeamento e edição de nomes dos botões (`1..32`), sensibilidade, zona morta e calibração são feitos **exclusivamente no aplicativo Android** (acessíveis pelo menu de 3 listras `☰` que abre uma janela na tela fechável com `✕`).
+   - **Sliders e Controles no Celular**:
+     - Sem slider de Trim.
+     - **Esquerda (Vertical)**: Slider grosso de **Potência (Throttle)** com leve suavização para ajuste fluido.
+     - **Direita Inferior (Horizontal)**: Slider grosso de **Rudder (Pedais)**.
+     - **Trava Anti-Toque Acidental**: Os sliders **só se movem se o toque iniciar exatamente em cima do quadradinho (handle)** e for arrastado.
+     - **Centro**: Indicador minimalista do giroscópio.
+     - **Botões**: Organizados por uso e editáveis (nome, botão vJoy `1..32` e modo Push/Toggle).
+   - **Comportamento no Cliente Windows (PC)**:
+     - Interface limpa em preto, branco e cinza exibindo apenas status de conexão, nome do PC, IP, driver vJoy e monitor compacto.
+     - **Efeito Sonoro**: Som satisfatório de **1 toque** ao conectar e **2 toques** ao desconectar.
+     - **Minimizar no X**: Ao clicar no `X` da janela, o programa **não fecha**; ele permanece minimizado na barra de tarefas (com botão dedicado caso o usuário queira encerrar de vez).

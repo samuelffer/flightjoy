@@ -1,11 +1,12 @@
 using System.Text.Json.Serialization;
+using FlightJoy.Core.VJoy;
 
 namespace FlightJoy.Core.Protocol;
 
 /// <summary>
 /// Representa qualquer pacote UDP do protocolo FlightJoy v1.
-/// Os eixos são transmitidos como inteiros escalados [-10000, +10000]
-/// para eliminar variações de formatação de ponto flutuante entre plataformas.
+/// Toda a configuração de sensibilidade, calibração e mapeamento de eixos/botões
+/// vem diretamente do aplicativo Android.
 /// </summary>
 public sealed class FlightJoyPacket
 {
@@ -22,6 +23,14 @@ public sealed class FlightJoyPacket
     [JsonPropertyName("deviceName")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? DeviceName { get; set; }
+
+    [JsonPropertyName("pcName")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PcName { get; set; }
+
+    [JsonPropertyName("port")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int Port { get; set; }
 
     [JsonPropertyName("clientNonce")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -54,21 +63,45 @@ public sealed class FlightJoyPacket
     [JsonPropertyName("r")]
     public int RollScaled { get; set; }
 
-    /// <summary>Yaw escalado [-10000, 10000]</summary>
+    /// <summary>Rudder / Yaw (pedais + giroscópio opcional) escalado [-10000, 10000]</summary>
     [JsonPropertyName("y")]
     public int YawScaled { get; set; }
 
-    /// <summary>Throttle slider escalado [-10000, 10000]</summary>
+    /// <summary>Throttle slider vertical escalado [-10000, 10000]</summary>
     [JsonPropertyName("t")]
     public int ThrottleScaled { get; set; }
 
-    /// <summary>Slider Auxiliar / Flaps escalado [-10000, 10000]</summary>
+    /// <summary>Compatibilidade opcional</summary>
     [JsonPropertyName("a")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int AuxScaled { get; set; }
 
-    /// <summary>Bitmask dos botões (Bit 0 = Botão 1 ... Bit 7 = Botão 8)</summary>
+    /// <summary>
+    /// Máscara de 32 bits dos botões vJoy já mapeados pelo celular
+    /// (bit 0 = Botão vJoy 1, ..., bit 31 = Botão vJoy 32).
+    /// </summary>
     [JsonPropertyName("b")]
     public int ButtonsMask { get; set; }
+
+    /// <summary>Eixo vJoy alvo para Pitch enviado pelo celular (ex: "Y")</summary>
+    [JsonPropertyName("mp")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MapPitch { get; set; }
+
+    /// <summary>Eixo vJoy alvo para Roll enviado pelo celular (ex: "X")</summary>
+    [JsonPropertyName("mr")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MapRoll { get; set; }
+
+    /// <summary>Eixo vJoy alvo para Rudder/Pedais enviado pelo celular (ex: "RZ")</summary>
+    [JsonPropertyName("my")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MapRudder { get; set; }
+
+    /// <summary>Eixo vJoy alvo para Throttle enviado pelo celular (ex: "Z")</summary>
+    [JsonPropertyName("mt")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MapThrottle { get; set; }
 
     [JsonPropertyName("mac")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -89,16 +122,27 @@ public sealed class FlightJoyPacket
     [JsonIgnore]
     public double AuxNormalized => Math.Clamp((double)AuxScaled / ProtocolConstants.AxisScaleFactor, -1.0, 1.0);
 
-    public bool IsButtonPressed(int buttonOneBasedIndex)
+    public bool IsButtonPressed(int vjoyButtonOneBasedIndex)
     {
-        if (buttonOneBasedIndex < 1 || buttonOneBasedIndex > 32)
+        if (vjoyButtonOneBasedIndex < 1 || vjoyButtonOneBasedIndex > 32)
             return false;
-        return (ButtonsMask & (1 << (buttonOneBasedIndex - 1))) != 0;
+        uint mask = unchecked((uint)ButtonsMask);
+        return (mask & (1u << (vjoyButtonOneBasedIndex - 1))) != 0;
     }
 
     public static int ScaleAxis(double normalized)
     {
         double clamped = Math.Clamp(normalized, -1.0, 1.0);
         return (int)Math.Round(clamped * ProtocolConstants.AxisScaleFactor);
+    }
+
+    public static VJoyAxisUsage ParseAxisOrDefault(string? axisName, VJoyAxisUsage defaultAxis)
+    {
+        if (!string.IsNullOrWhiteSpace(axisName) &&
+            Enum.TryParse<VJoyAxisUsage>(axisName.Trim(), ignoreCase: true, out VJoyAxisUsage parsed))
+        {
+            return parsed;
+        }
+        return defaultAxis;
     }
 }

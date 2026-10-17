@@ -26,11 +26,10 @@ public sealed class AxisMonitorItem : INotifyPropertyChanged
 
     public string DisplayName => _model.Source switch
     {
-        SourceAxis.Pitch => "Pitch (Profundor / Arfagem)",
-        SourceAxis.Roll => "Roll (Aileron / Rolagem)",
-        SourceAxis.Yaw => "Yaw (Leme / Guinada)",
-        SourceAxis.Throttle => "Throttle (Manete Potência)",
-        SourceAxis.Aux => "Auxiliar (Flaps / Trim)",
+        SourceAxis.Pitch => "Pitch (Arfagem)",
+        SourceAxis.Roll => "Roll (Rolagem)",
+        SourceAxis.Yaw => "Rudder (Pedais)",
+        SourceAxis.Throttle => "Throttle (Potência)",
         _ => _model.Source.ToString()
     };
 

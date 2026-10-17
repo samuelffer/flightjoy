@@ -10,7 +10,7 @@ import org.junit.Test
 class PacketCodecTest {
 
     @Test
-    fun encodeAndDecode_preservesFieldsExactly() {
+    fun encodeAndDecode_preservesFieldsAndAxisMappings() {
         val original = FlightJoyPacket(
             version = ProtocolConstants.VERSION,
             type = ProtocolConstants.TYPE_STATE,
@@ -21,9 +21,11 @@ class PacketCodecTest {
             rollScaled = FlightJoyPacket.scaleAxis(-0.50f),
             yawScaled = FlightJoyPacket.scaleAxis(0.0f),
             throttleScaled = FlightJoyPacket.scaleAxis(1.0f),
-            auxScaled = FlightJoyPacket.scaleAxis(-1.0f),
-            buttonsMask = 0b00010011,
-            mac = "abcd1234"
+            buttonsMask = (1 shl 0) or (1 shl 15),
+            mapPitch = "Y",
+            mapRoll = "X",
+            mapRudder = "RZ",
+            mapThrottle = "Z"
         )
 
         val bytes = PacketCodec.encodeToBytes(original)
@@ -35,7 +37,28 @@ class PacketCodecTest {
         assertEquals(2500, decoded?.pitchScaled)
         assertEquals(-5000, decoded?.rollScaled)
         assertEquals(10000, decoded?.throttleScaled)
-        assertEquals(-10000, decoded?.auxScaled)
-        assertEquals(0b00010011, decoded?.buttonsMask)
+        assertEquals((1 shl 0) or (1 shl 15), decoded?.buttonsMask)
+        assertEquals("Y", decoded?.mapPitch)
+        assertEquals("X", decoded?.mapRoll)
+        assertEquals("RZ", decoded?.mapRudder)
+        assertEquals("Z", decoded?.mapThrottle)
+    }
+
+    @Test
+    fun encodeAndDecode_discoverReply_preservesPcNameAndPort() {
+        val reply = FlightJoyPacket(
+            version = ProtocolConstants.VERSION,
+            type = ProtocolConstants.TYPE_DISCOVER_REPLY,
+            pcName = "DESKTOP-FLIGHTPC",
+            port = 49152
+        )
+
+        val bytes = PacketCodec.encodeToBytes(reply)
+        val decoded = PacketCodec.decodeFromBytes(bytes, bytes.size)
+
+        assertNotNull(decoded)
+        assertEquals(ProtocolConstants.TYPE_DISCOVER_REPLY, decoded?.type)
+        assertEquals("DESKTOP-FLIGHTPC", decoded?.pcName)
+        assertEquals(49152, decoded?.port)
     }
 }

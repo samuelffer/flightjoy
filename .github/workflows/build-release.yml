@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "**"
+    paths-ignore:
+      - "Zips/**"
   pull_request:
   workflow_dispatch:
     inputs:
@@ -57,9 +59,17 @@ jobs:
             exit 0
           fi
 
+          # Se ainda não existe Zips/FlightJoy.zip no repositório, compila ambos obrigatoriamente
+          if [ ! -f "Zips/FlightJoy.zip" ]; then
+            echo "Zips/FlightJoy.zip ainda não existe -> compilando AMBOS."
+            echo "build_android=true" >> $GITHUB_OUTPUT
+            echo "build_windows=true" >> $GITHUB_OUTPUT
+            echo "bundle_mode=both" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           BEFORE_SHA="${{ github.event.before }}"
           if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
-            echo "Push inicial na branch ou commit anterior indisponível -> compilando AMBOS."
             echo "build_android=true" >> $GITHUB_OUTPUT
             echo "build_windows=true" >> $GITHUB_OUTPUT
             echo "bundle_mode=both" >> $GITHUB_OUTPUT
@@ -126,15 +136,15 @@ jobs:
       - name: Compilar APK Debug
         run: gradle -p android assembleDebug --no-daemon
 
-      - name: Preparar APK para Pacote
+      - name: Preparar APK
         run: |
           mkdir -p dist-android
           cp android/app/build/outputs/apk/debug/app-debug.apk dist-android/FlightJoy-Android-debug.apk
 
-      - name: Upload Artefato Individual Android (ZIP)
+      - name: Upload Temporário Android
         uses: actions/upload-artifact@v4
         with:
-          name: FlightJoy-Android-Only
+          name: temp-android-apk
           path: dist-android/
           if-no-files-found: error
 
@@ -176,15 +186,15 @@ jobs:
             exit $LASTEXITCODE
           }
 
-      - name: Upload Artefato Individual Windows (ZIP)
+      - name: Upload Temporário Windows
         uses: actions/upload-artifact@v4
         with:
-          name: FlightJoy-Windows-Only
+          name: temp-windows-exe
           path: dist-windows/
           if-no-files-found: error
 
   package-bundle:
-    name: Gerar Pacote ZIP Final
+    name: Atualizar Pasta Zips/FlightJoy.zip
     needs: [detect-changes, build-android, build-windows]
     if: |
       always() &&
@@ -193,53 +203,52 @@ jobs:
       (needs.build-android.result == 'success' || needs.build-windows.result == 'success')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout README
+      - name: Checkout Branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
 
-      - name: Baixar APK Android (se compilado)
+      - name: Extrair Zips/FlightJoy.zip existente (para preservar o lado não recompilado)
+        run: |
+          mkdir -p package_root/Android package_root/Windows
+          if [ -f "Zips/FlightJoy.zip" ]; then
+            unzip -o "Zips/FlightJoy.zip" -d package_root/ || true
+          fi
+
+      - name: Atualizar APK Android (se recompilado)
         if: needs.detect-changes.outputs.build_android == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: FlightJoy-Android-Only
+          name: temp-android-apk
           path: package_root/Android
 
-      - name: Baixar Cliente Windows (se compilado)
+      - name: Atualizar Cliente Windows (se recompilado)
         if: needs.detect-changes.outputs.build_windows == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: FlightJoy-Windows-Only
+          name: temp-windows-exe
           path: package_root/Windows
 
-      - name: Montar Arquivos ZIP para Release
+      - name: Gerar Zips/FlightJoy.zip Unificado e Fazer Commit na Pasta Zips
         run: |
-          mkdir -p package_root release_zips
           cp README.md package_root/README.md
-          MODE="${{ needs.detect-changes.outputs.bundle_mode }}"
-          (cd package_root && zip -r "../release_zips/FlightJoy-${MODE}.zip" .)
-          if [ -d "package_root/Android" ]; then
-            (cd package_root/Android && zip -r "../../release_zips/FlightJoy-android-only.zip" .)
-          fi
-          if [ -d "package_root/Windows" ]; then
-            (cd package_root/Windows && zip -r "../../release_zips/FlightJoy-windows-only.zip" .)
+          mkdir -p Zips
+          rm -f Zips/FlightJoy.zip
+          (cd package_root && zip -r "../Zips/FlightJoy.zip" .)
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Zips/FlightJoy.zip
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(zips): update Zips/FlightJoy.zip (${{ needs.detect-changes.outputs.bundle_mode }}) [skip ci]"
+            git pull --rebase origin "${{ github.ref_name }}" || true
+            git push origin "HEAD:${{ github.ref_name }}"
           fi
 
-      - name: Publicar Artefato Principal no GitHub Actions
+      - name: Publicar Artefato Único FlightJoy-Zip no GitHub Actions
         uses: actions/upload-artifact@v4
         with:
-          name: FlightJoy-Package-${{ needs.detect-changes.outputs.bundle_mode }}
+          name: FlightJoy
           path: package_root/
           if-no-files-found: error
-
-      - name: Publicar Links Diretos no GitHub Releases (tag latest-build)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="latest-build"
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" release_zips/*.zip \
-              --title "FlightJoy — Build de Testes (${{ github.ref_name }})" \
-              --notes "Pacotes ZIP gerados automaticamente pelo GitHub Actions no commit ${{ github.sha }}." \
-              --prerelease
-          else
-            gh release upload "$TAG" release_zips/*.zip --clobber
-          fi

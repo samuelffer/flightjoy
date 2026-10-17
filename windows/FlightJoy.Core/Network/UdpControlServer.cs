@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using FlightJoy.Core.Audio;
 using FlightJoy.Core.Config;
 using FlightJoy.Core.Control;
 using FlightJoy.Core.Logging;
@@ -10,8 +11,8 @@ using FlightJoy.Core.VJoy;
 namespace FlightJoy.Core.Network;
 
 /// <summary>
-/// Servidor UDP de baixa latência responsável pelo pareamento HMAC-SHA256,
-/// recepção contínua de controles, detecção de desconexão via Watchdog e envio ao vJoy.
+/// Servidor UDP de baixa latência responsável pela descoberta automática na rede (Broadcast),
+/// conexão direta sem PIN, recepção contínua de controles, efeitos sonoros e envio ao vJoy.
 /// </summary>
 public sealed class UdpControlServer : IDisposable
 {
@@ -28,14 +29,12 @@ public sealed class UdpControlServer : IDisposable
     private Task? _watchdogLoopTask;
 
     private string? _activeSessionId;
-    private string? _activeSessionKey;
     private IPEndPoint? _pairedEndpoint;
     private ConnectedDeviceInfo? _connectedDevice;
     private long _lastSequenceNumber;
 
     private long _totalPacketsReceived;
     private long _outOfOrderOrDropped;
-    private long _invalidAuthPackets;
     private int _packetsInCurrentWindow;
     private long _lastRateCalcTickMs;
     private double _currentPacketsPerSecond;
@@ -76,10 +75,13 @@ public sealed class UdpControlServer : IDisposable
         Stop();
 
         _cts = new CancellationTokenSource();
-        _udpClient = new UdpClient(_config.UdpPort);
+        _udpClient = new UdpClient(_config.UdpPort)
+        {
+            EnableBroadcast = true
+        };
         _udpClient.Client.ReceiveBufferSize = 65536;
 
-        // Evita SocketException (WSAECONNRESET 10054) no Windows quando o cliente remoto fecha a porta UDP
+        // Evita SocketException (WSAECONNRESET 10054) no Windows
         if (OperatingSystem.IsWindows())
         {
             const int SIO_UDP_CONNRESET = -1744830452;
@@ -89,13 +91,12 @@ public sealed class UdpControlServer : IDisposable
             }
             catch
             {
-                // Ignora se não suportado
             }
         }
 
         _lastRateCalcTickMs = Environment.TickCount64;
         SetState(ConnectionState.Listening, null);
-        _logger.Info("Rede", $"Servidor UDP iniciado na porta {_config.UdpPort}. Aguardando pareamento (PIN: {_config.PairingPin}).");
+        _logger.Info("Rede", $"Servidor UDP iniciado na porta {_config.UdpPort} (PC: {Environment.MachineName}).");
 
         CancellationToken token = _cts.Token;
         _receiveLoopTask = Task.Run(() => ReceiveLoopAsync(token), token);
@@ -130,7 +131,6 @@ public sealed class UdpControlServer : IDisposable
         lock (_sessionLock)
         {
             _activeSessionId = null;
-            _activeSessionKey = null;
             _pairedEndpoint = null;
             _connectedDevice = null;
             _lastSequenceNumber = 0;
@@ -169,7 +169,7 @@ public sealed class UdpControlServer : IDisposable
             {
                 if (!ct.IsCancellationRequested)
                 {
-                    _logger.Warn("Rede", $"Aviso de socket UDP: {ex.SocketErrorCode} ({ex.Message})");
+                    _logger.Warn("Rede", $"Aviso socket UDP: {ex.SocketErrorCode}");
                 }
             }
             catch (Exception ex)
@@ -199,10 +199,6 @@ public sealed class UdpControlServer : IDisposable
         }
     }
 
-    /// <summary>
-    /// Processa um datagrama UDP recebido e retorna opcionalmente um pacote de resposta (PAIR_ACK, PAIR_ERR, PONG).
-    /// Método público para permitir testes integrados determinísticos sem abrir portas de rede reais.
-    /// </summary>
     public FlightJoyPacket? ProcessDatagram(ReadOnlySpan<byte> datagram, IPEndPoint remoteEndPoint, long nowTickMs)
     {
         FlightJoyPacket? packet = PacketSerializer.Deserialize(datagram);
@@ -211,8 +207,12 @@ public sealed class UdpControlServer : IDisposable
 
         switch (packet.Type)
         {
+            case ProtocolConstants.TypeDiscover:
+                return HandleDiscoverRequest(remoteEndPoint);
+
+            case ProtocolConstants.TypeHello:
             case ProtocolConstants.TypePairReq:
-                return HandlePairRequest(packet, remoteEndPoint, nowTickMs);
+                return HandleHelloOrPairRequest(packet, remoteEndPoint, nowTickMs);
 
             case ProtocolConstants.TypeState:
                 return HandleStatePacket(packet, remoteEndPoint, nowTickMs);
@@ -229,37 +229,29 @@ public sealed class UdpControlServer : IDisposable
         }
     }
 
-    private FlightJoyPacket HandlePairRequest(FlightJoyPacket packet, IPEndPoint remoteEndPoint, long nowTickMs)
+    private FlightJoyPacket HandleDiscoverRequest(IPEndPoint remoteEndPoint)
     {
-        string pin;
-        lock (_sessionLock)
+        string machineName = GetSafeMachineName();
+        _logger.Info("Busca", $"Solicitação de busca recebida de {remoteEndPoint}. Respondendo como '{machineName}'.");
+        return new FlightJoyPacket
         {
-            pin = _config.PairingPin;
-        }
+            Version = ProtocolConstants.ProtocolVersion,
+            Type = ProtocolConstants.TypeDiscoverReply,
+            PcName = machineName,
+            Port = _config.UdpPort,
+            TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+    }
 
-        if (!PairingAuthenticator.VerifyPairReq(packet, pin))
-        {
-            Interlocked.Increment(ref _invalidAuthPackets);
-            _logger.Security("Pareamento", $"Tentativa de pareamento recusada de {remoteEndPoint} (PIN incorreto ou assinatura inválida).");
-            return new FlightJoyPacket
-            {
-                Version = ProtocolConstants.ProtocolVersion,
-                Type = ProtocolConstants.TypePairErr,
-                Reason = "PIN de pareamento inválido",
-                TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            };
-        }
-
-        string sessionId = PairingAuthenticator.GenerateNonceHex(16);
-        string sessionKey = PairingAuthenticator.DeriveSessionKey(
-            pin,
-            packet.DeviceId!,
-            packet.ClientNonce!,
-            sessionId);
+    private FlightJoyPacket HandleHelloOrPairRequest(FlightJoyPacket packet, IPEndPoint remoteEndPoint, long nowTickMs)
+    {
+        string sessionId = PairingAuthenticator.GenerateNonceHex(12);
+        string deviceId = string.IsNullOrWhiteSpace(packet.DeviceId) ? "android-client" : packet.DeviceId!;
+        string deviceName = string.IsNullOrWhiteSpace(packet.DeviceName) ? "Android FlightJoy" : packet.DeviceName!;
 
         ConnectedDeviceInfo deviceInfo = new(
-            DeviceId: packet.DeviceId!,
-            DeviceName: string.IsNullOrWhiteSpace(packet.DeviceName) ? "Android FlightJoy" : packet.DeviceName!,
+            DeviceId: deviceId,
+            DeviceName: deviceName,
             RemoteEndpoint: remoteEndPoint.ToString(),
             SessionId: sessionId,
             ConnectedAtUtc: DateTimeOffset.UtcNow);
@@ -267,7 +259,6 @@ public sealed class UdpControlServer : IDisposable
         lock (_sessionLock)
         {
             _activeSessionId = sessionId;
-            _activeSessionKey = sessionKey;
             _pairedEndpoint = remoteEndPoint;
             _connectedDevice = deviceInfo;
             _lastSequenceNumber = 0;
@@ -275,43 +266,59 @@ public sealed class UdpControlServer : IDisposable
 
         _watchdog.StartSession(nowTickMs);
         SetState(ConnectionState.PairedAndConnected, deviceInfo);
-        _logger.Info("Pareamento", $"Dispositivo '{deviceInfo.DeviceName}' ({remoteEndPoint}) pareado com sucesso! Sessão: {sessionId[..8]}...");
+        SoundNotifier.PlayConnected();
+        _logger.Info("Conexão", $"Celular '{deviceInfo.DeviceName}' ({remoteEndPoint}) conectado!");
 
-        FlightJoyPacket ack = new()
+        bool isLegacyPair = packet.Type == ProtocolConstants.TypePairReq;
+        FlightJoyPacket reply = new()
         {
             Version = ProtocolConstants.ProtocolVersion,
-            Type = ProtocolConstants.TypePairAck,
-            DeviceId = packet.DeviceId,
+            Type = isLegacyPair ? ProtocolConstants.TypePairAck : ProtocolConstants.TypeWelcome,
+            DeviceId = deviceId,
             ClientNonce = packet.ClientNonce,
             SessionId = sessionId,
+            PcName = GetSafeMachineName(),
+            Port = _config.UdpPort,
             TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
-        PairingAuthenticator.SignPairAck(ack, pin);
-        return ack;
+
+        if (isLegacyPair && !string.IsNullOrEmpty(_config.PairingPin))
+        {
+            PairingAuthenticator.SignPairAck(reply, _config.PairingPin);
+        }
+
+        return reply;
     }
 
     private FlightJoyPacket? HandleStatePacket(FlightJoyPacket packet, IPEndPoint remoteEndPoint, long nowTickMs)
     {
         string? activeSessionId;
-        string? activeSessionKey;
         lock (_sessionLock)
         {
             activeSessionId = _activeSessionId;
-            activeSessionKey = _activeSessionKey;
-        }
+            if (string.IsNullOrEmpty(activeSessionId))
+            {
+                // Reconexão transparente caso o celular já estivesse enviando STATE
+                activeSessionId = string.IsNullOrWhiteSpace(packet.SessionId) ? "auto-session" : packet.SessionId!;
+                _activeSessionId = activeSessionId;
+                _connectedDevice = new ConnectedDeviceInfo(
+                    DeviceId: "android",
+                    DeviceName: "Android FlightJoy",
+                    RemoteEndpoint: remoteEndPoint.ToString(),
+                    SessionId: activeSessionId,
+                    ConnectedAtUtc: DateTimeOffset.UtcNow);
+                _lastSequenceNumber = 0;
+                SoundNotifier.PlayConnected();
+            }
+            else if (!string.IsNullOrWhiteSpace(packet.SessionId) &&
+                     !string.Equals(packet.SessionId, activeSessionId, StringComparison.Ordinal))
+            {
+                _activeSessionId = packet.SessionId;
+                activeSessionId = packet.SessionId;
+                _lastSequenceNumber = 0;
+            }
 
-        if (string.IsNullOrEmpty(activeSessionId) ||
-            string.IsNullOrEmpty(activeSessionKey) ||
-            !string.Equals(packet.SessionId, activeSessionId, StringComparison.Ordinal) ||
-            !PairingAuthenticator.VerifyState(packet, activeSessionKey))
-        {
-            Interlocked.Increment(ref _invalidAuthPackets);
-            return null;
-        }
-
-        lock (_sessionLock)
-        {
-            if (packet.Sequence <= _lastSequenceNumber)
+            if (packet.Sequence > 0 && packet.Sequence <= _lastSequenceNumber)
             {
                 Interlocked.Increment(ref _outOfOrderOrDropped);
                 return null;
@@ -339,10 +346,9 @@ public sealed class UdpControlServer : IDisposable
         ProcessedJoystickState processed = _pipeline.ApplyPacket(packet, _feeder);
         JoystickStateUpdated?.Invoke(processed);
 
-        // Responde com PONG a cada 30 pacotes (~500ms em 60Hz) para telemetria contínua de RTT no Android
         if (packet.Sequence % 30 == 0)
         {
-            FlightJoyPacket pong = new()
+            return new FlightJoyPacket
             {
                 Version = ProtocolConstants.ProtocolVersion,
                 Type = ProtocolConstants.TypePong,
@@ -351,8 +357,6 @@ public sealed class UdpControlServer : IDisposable
                 ClientTimestampMs = packet.TimestampMs,
                 TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
-            PairingAuthenticator.SignPong(pong, activeSessionKey);
-            return pong;
         }
 
         return null;
@@ -360,66 +364,30 @@ public sealed class UdpControlServer : IDisposable
 
     private FlightJoyPacket? HandlePingPacket(FlightJoyPacket packet, long nowTickMs)
     {
-        string? activeSessionId;
-        string? activeSessionKey;
-        lock (_sessionLock)
-        {
-            activeSessionId = _activeSessionId;
-            activeSessionKey = _activeSessionKey;
-        }
-
-        if (string.IsNullOrEmpty(activeSessionId) ||
-            string.IsNullOrEmpty(activeSessionKey) ||
-            !string.Equals(packet.SessionId, activeSessionId, StringComparison.Ordinal) ||
-            !PairingAuthenticator.VerifyPing(packet, activeSessionKey))
-        {
-            Interlocked.Increment(ref _invalidAuthPackets);
-            return null;
-        }
-
         _watchdog.RecordActivity(nowTickMs);
-
-        FlightJoyPacket pong = new()
+        return new FlightJoyPacket
         {
             Version = ProtocolConstants.ProtocolVersion,
             Type = ProtocolConstants.TypePong,
-            SessionId = activeSessionId,
+            SessionId = packet.SessionId ?? _activeSessionId,
             Sequence = packet.Sequence,
             ClientTimestampMs = packet.TimestampMs,
             TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
-        PairingAuthenticator.SignPong(pong, activeSessionKey);
-        return pong;
     }
 
     private void HandleDisconnectPacket(FlightJoyPacket packet, IPEndPoint remoteEndPoint)
     {
-        string? activeSessionId;
-        string? activeSessionKey;
         bool resetOnDisconnect;
         lock (_sessionLock)
         {
-            activeSessionId = _activeSessionId;
-            activeSessionKey = _activeSessionKey;
             resetOnDisconnect = _config.ResetAxesOnDisconnect;
-        }
-
-        if (string.IsNullOrEmpty(activeSessionId) ||
-            string.IsNullOrEmpty(activeSessionKey) ||
-            !string.Equals(packet.SessionId, activeSessionId, StringComparison.Ordinal) ||
-            !PairingAuthenticator.VerifyDisconnect(packet, activeSessionKey))
-        {
-            return;
-        }
-
-        _watchdog.StopSession();
-        lock (_sessionLock)
-        {
             _activeSessionId = null;
-            _activeSessionKey = null;
             _connectedDevice = null;
             _lastSequenceNumber = 0;
         }
+
+        _watchdog.StopSession();
 
         if (resetOnDisconnect)
         {
@@ -427,7 +395,8 @@ public sealed class UdpControlServer : IDisposable
         }
 
         SetState(ConnectionState.Listening, null);
-        _logger.Info("Rede", $"Dispositivo em {remoteEndPoint} encerrou a conexão normalmente.");
+        SoundNotifier.PlayDisconnected();
+        _logger.Info("Conexão", $"Celular em {remoteEndPoint} desconectou.");
     }
 
     private void OnWatchdogTimeout()
@@ -438,6 +407,8 @@ public sealed class UdpControlServer : IDisposable
         {
             resetOnDisconnect = _config.ResetAxesOnDisconnect;
             previousDevice = _connectedDevice;
+            _activeSessionId = null;
+            _lastSequenceNumber = 0;
         }
 
         if (resetOnDisconnect)
@@ -446,7 +417,8 @@ public sealed class UdpControlServer : IDisposable
         }
 
         SetState(ConnectionState.DisconnectedTimeout, previousDevice);
-        _logger.Warn("Watchdog", $"Perda de conexão detectada com '{previousDevice?.DeviceName ?? "Android"}' após {_watchdog.TimeoutMs} ms sem pacotes. Controles neutralizados (Fail-Safe).");
+        SoundNotifier.PlayDisconnected();
+        _logger.Warn("Watchdog", $"Conexão perdida com '{previousDevice?.DeviceName ?? "Celular"}'. Controles neutralizados.");
     }
 
     private void SetState(ConnectionState newState, ConnectedDeviceInfo? deviceInfo)
@@ -461,11 +433,23 @@ public sealed class UdpControlServer : IDisposable
         {
             TotalPacketsReceived = Interlocked.Read(ref _totalPacketsReceived),
             OutOfOrderOrDroppedPackets = Interlocked.Read(ref _outOfOrderOrDropped),
-            InvalidAuthPackets = Interlocked.Read(ref _invalidAuthPackets),
+            InvalidAuthPackets = 0,
             LastSequenceNumber = Interlocked.Read(ref _lastSequenceNumber),
             CurrentPacketsPerSecond = Math.Round(_currentPacketsPerSecond, 1),
             LastPacketAgeMs = _watchdog.GetElapsedSinceLastActivityMs(nowTickMs)
         };
+    }
+
+    public static string GetSafeMachineName()
+    {
+        try
+        {
+            return Environment.MachineName;
+        }
+        catch
+        {
+            return "DESKTOP-PC";
+        }
     }
 
     public static IReadOnlyList<string> GetLocalLanIpAddresses()

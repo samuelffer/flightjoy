@@ -1,5 +1,4 @@
-using System.Diagnostics;
-using System.IO;
+using System.ComponentModel;
 using System.Windows;
 using FlightJoy.Windows.ViewModels;
 
@@ -8,18 +7,26 @@ namespace FlightJoy.Windows;
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
+    private bool _allowFullExit;
 
     public MainWindow()
     {
         InitializeComponent();
         _viewModel = new MainViewModel(Dispatcher);
         DataContext = _viewModel;
+        Closing += OnWindowClosing;
         Closed += (_, _) => _viewModel.Dispose();
     }
 
-    private void OnGeneratePinClick(object sender, RoutedEventArgs e)
+    private void OnWindowClosing(object? sender, CancelEventArgs e)
     {
-        _viewModel.GenerateNewPin();
+        // Ao clicar no X da janela, permanece aberto e minimizado na barra de tarefas
+        if (!_allowFullExit)
+        {
+            e.Cancel = true;
+            WindowState = WindowState.Minimized;
+            ShowInTaskbar = true;
+        }
     }
 
     private void OnReconnectVJoyClick(object sender, RoutedEventArgs e)
@@ -32,45 +39,14 @@ public partial class MainWindow : Window
         _viewModel.ToggleServer();
     }
 
-    private void OnCalibrateCenterClick(object sender, RoutedEventArgs e)
+    private void OnToggleLogsClick(object sender, RoutedEventArgs e)
     {
-        _viewModel.CalibrateCenterOnPc();
+        _viewModel.ToggleLogs();
     }
 
-    private void OnResetCalibrationClick(object sender, RoutedEventArgs e)
+    private void OnForceExitClick(object sender, RoutedEventArgs e)
     {
-        _viewModel.ResetPcCalibration();
-    }
-
-    private void OnSaveConfigClick(object sender, RoutedEventArgs e)
-    {
-        _viewModel.SaveConfiguration();
-    }
-
-    private void OnRestoreDefaultsClick(object sender, RoutedEventArgs e)
-    {
-        _viewModel.RestoreDefaults();
-    }
-
-    private void OnClearLogsClick(object sender, RoutedEventArgs e)
-    {
-        _viewModel.ClearLogs();
-    }
-
-    private void OnOpenLogsFolderClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            string folder = _viewModel.LogDirectoryPath;
-            Directory.CreateDirectory(folder);
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = folder,
-                UseShellExecute = true
-            });
-        }
-        catch
-        {
-        }
+        _allowFullExit = true;
+        Close();
     }
 }

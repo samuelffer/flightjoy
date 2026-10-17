@@ -16,16 +16,22 @@ class ControlState {
     var yaw: Float = 0.0f
 
     @Volatile
-    var throttle: Float = -1.0f // -1.0f = 0% acelerador; +1.0f = 100% acelerador
+    var rudderSlider: Float = 0.0f
 
     @Volatile
-    var aux: Float = 0.0f // 0.0f = neutro
+    var throttle: Float = -1.0f // -1.0f = 0% potência; +1.0f = 100% potência
+
+    val combinedRudder: Float
+        get() = (rudderSlider + yaw).coerceIn(-1.0f, 1.0f)
 
     private val buttonsMask = AtomicInteger(0)
 
-    fun setButtonPressed(buttonIndexOneBased: Int, pressed: Boolean) {
-        if (buttonIndexOneBased !in 1..16) return
-        val bit = 1 shl (buttonIndexOneBased - 1)
+    /**
+     * Ativa ou desativa diretamente o botão vJoy alvo (1..32).
+     */
+    fun setButtonPressed(vjoyButtonOneBased: Int, pressed: Boolean) {
+        if (vjoyButtonOneBased !in 1..32) return
+        val bit = 1 shl (vjoyButtonOneBased - 1)
         while (true) {
             val current = buttonsMask.get()
             val updated = if (pressed) (current or bit) else (current and bit.inv())
@@ -33,6 +39,12 @@ class ControlState {
                 break
             }
         }
+    }
+
+    fun isButtonPressed(vjoyButtonOneBased: Int): Boolean {
+        if (vjoyButtonOneBased !in 1..32) return false
+        val bit = 1 shl (vjoyButtonOneBased - 1)
+        return (buttonsMask.get() and bit) != 0
     }
 
     fun getButtonsMask(): Int = buttonsMask.get()

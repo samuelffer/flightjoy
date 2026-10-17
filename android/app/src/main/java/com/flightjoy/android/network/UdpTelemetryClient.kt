@@ -9,10 +9,18 @@ import com.flightjoy.android.protocol.PacketCodec
 import com.flightjoy.android.protocol.ProtocolConstants
 import java.net.DatagramPacket
 import java.net.DatagramSocket
+import java.net.Inet4Address
 import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+
+data class DiscoveredPc(
+    val ipAddress: String,
+    val pcName: String,
+    val port: Int
+)
 
 class UdpTelemetryClient(
     private val deviceId: String,
@@ -29,7 +37,7 @@ class UdpTelemetryClient(
     private var sessionId: String? = null
 
     @Volatile
-    private var sessionKey: String? = null
+    var activeConfig: FlightClientConfig = FlightClientConfig()
 
     private val lastServerPongMs = AtomicLong(0L)
     private val lastRttMs = AtomicLong(0L)
@@ -38,8 +46,97 @@ class UdpTelemetryClient(
     val isConnectedOrPairing: Boolean
         get() = running.get()
 
+    /**
+     * Busca automaticamente um PC rodando o FlightJoy na mesma rede local via UDP Broadcast.
+     */
+    fun discoverPcOnLan(port: Int, onResult: (DiscoveredPc?) -> Unit) {
+        Thread({
+            var searchSocket: DatagramSocket? = null
+            try {
+                val targetPort = port.coerceIn(1024, 65535)
+                val udp = DatagramSocket()
+                udp.broadcast = true
+                udp.soTimeout = 700
+                searchSocket = udp
+
+                val discoverPkt = FlightJoyPacket(
+                    version = ProtocolConstants.VERSION,
+                    type = ProtocolConstants.TYPE_DISCOVER,
+                    deviceId = deviceId,
+                    deviceName = "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
+                    timestampMs = System.currentTimeMillis()
+                )
+                val bytes = PacketCodec.encodeToBytes(discoverPkt)
+
+                val broadcastTargets = mutableSetOf<InetAddress>()
+                broadcastTargets.add(InetAddress.getByName("255.255.255.255"))
+
+                try {
+                    val interfaces = NetworkInterface.getNetworkInterfaces()
+                    while (interfaces.hasMoreElements()) {
+                        val ni = interfaces.nextElement()
+                        if (!ni.isUp || ni.isLoopback) continue
+                        for (ia in ni.interfaceAddresses) {
+                            val bcast = ia.broadcast
+                            if (bcast is Inet4Address) {
+                                broadcastTargets.add(bcast)
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                }
+
+                val recvBuf = ByteArray(1024)
+                var found: DiscoveredPc? = null
+
+                for (attempt in 1..2) {
+                    for (addr in broadcastTargets) {
+                        try {
+                            udp.send(DatagramPacket(bytes, bytes.size, addr, targetPort))
+                        } catch (_: Exception) {
+                        }
+                    }
+
+                    try {
+                        val dp = DatagramPacket(recvBuf, recvBuf.size)
+                        udp.receive(dp)
+                        val decoded = PacketCodec.decodeFromBytes(dp.data, dp.length)
+                        if (decoded != null && decoded.type == ProtocolConstants.TYPE_DISCOVER_REPLY) {
+                            val ip = dp.address.hostAddress ?: continue
+                            val pcName = decoded.pcName?.ifBlank { "PC Desktop" } ?: "PC Desktop"
+                            val replyPort = if (decoded.port > 0) decoded.port else targetPort
+                            found = DiscoveredPc(ip, pcName, replyPort)
+                            break
+                        }
+                    } catch (_: SocketTimeoutException) {
+                    }
+                }
+
+                if (found != null) {
+                    logger.info("Busca", "PC encontrado: ${found.pcName} (${found.ipAddress}:${found.port})")
+                } else {
+                    logger.warn("Busca", "Nenhum PC encontrado na porta UDP $targetPort.")
+                }
+
+                onResult(found)
+            } catch (ex: Exception) {
+                logger.error("Busca", "Erro na busca automática: ${ex.message}")
+                onResult(null)
+            } finally {
+                try {
+                    searchSocket?.close()
+                } catch (_: Exception) {
+                }
+            }
+        }, "FlightJoy-Discovery").apply {
+            isDaemon = true
+            start()
+        }
+    }
+
     fun connect(config: FlightClientConfig) {
         disconnect(sendPacket = false)
+        activeConfig = config
         running.set(true)
 
         workerThread = Thread({
@@ -54,10 +151,9 @@ class UdpTelemetryClient(
         val wasRunning = running.getAndSet(false)
         val currentSocket = socket
         val activeSessionId = sessionId
-        val activeSessionKey = sessionKey
 
         if (wasRunning && sendPacket && currentSocket != null && !currentSocket.isClosed &&
-            !activeSessionId.isNullOrBlank() && !activeSessionKey.isNullOrBlank()
+            !activeSessionId.isNullOrBlank()
         ) {
             Thread {
                 try {
@@ -67,7 +163,6 @@ class UdpTelemetryClient(
                         sessionId = activeSessionId,
                         timestampMs = System.currentTimeMillis()
                     )
-                    PairingCrypto.signDisconnect(pkt, activeSessionKey)
                     val bytes = PacketCodec.encodeToBytes(pkt)
                     val addr = currentSocket.inetAddress
                     val port = currentSocket.port
@@ -91,10 +186,9 @@ class UdpTelemetryClient(
 
         socket = null
         sessionId = null
-        sessionKey = null
 
         if (wasRunning) {
-            logger.info("Rede", "Sessão UDP encerrada pelo usuário.")
+            logger.info("Rede", "Desconectado.")
             onStatusChanged(
                 ClientStatusSnapshot(
                     state = ClientConnectionState.DISCONNECTED,
@@ -108,37 +202,30 @@ class UdpTelemetryClient(
         try {
             val targetAddress = InetAddress.getByName(config.serverIp.trim())
             val targetPort = config.serverPort.coerceIn(1024, 65535)
-            val pin = config.pairingPin.trim()
 
             onStatusChanged(
                 ClientStatusSnapshot(
                     state = ClientConnectionState.PAIRING,
-                    message = "Pareando com ${config.serverIp}:$targetPort..."
+                    message = "Conectando..."
                 )
             )
-            logger.info("Rede", "Iniciando pareamento com ${config.serverIp}:$targetPort...")
 
             val udp = DatagramSocket()
-            udp.soTimeout = 800
+            udp.soTimeout = 700
             udp.connect(targetAddress, targetPort)
             socket = udp
 
-            val clientNonce = PairingCrypto.generateNonceHex(16)
             val deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
-
-            val pairReq = FlightJoyPacket(
+            val helloReq = FlightJoyPacket(
                 version = ProtocolConstants.VERSION,
-                type = ProtocolConstants.TYPE_PAIR_REQ,
+                type = ProtocolConstants.TYPE_HELLO,
                 deviceId = deviceId,
                 deviceName = deviceModel,
-                clientNonce = clientNonce,
                 timestampMs = System.currentTimeMillis()
             )
-            PairingCrypto.signPairReq(pairReq, pin)
-            val reqBytes = PacketCodec.encodeToBytes(pairReq)
+            val reqBytes = PacketCodec.encodeToBytes(helloReq)
 
-            var ackPacket: FlightJoyPacket? = null
-            var pairErrorReason: String? = null
+            var welcomePacket: FlightJoyPacket? = null
             val recvBuf = ByteArray(2048)
 
             for (attempt in 1..3) {
@@ -148,97 +235,76 @@ class UdpTelemetryClient(
                     val respDatagram = DatagramPacket(recvBuf, recvBuf.size)
                     udp.receive(respDatagram)
                     val decoded = PacketCodec.decodeFromBytes(respDatagram.data, respDatagram.length)
-                    if (decoded != null) {
-                        if (decoded.type == ProtocolConstants.TYPE_PAIR_ERR) {
-                            pairErrorReason = decoded.reason ?: "PIN recusado pelo servidor"
-                            break
-                        }
-                        if (decoded.type == ProtocolConstants.TYPE_PAIR_ACK &&
-                            PairingCrypto.verifyPairAck(decoded, pin)
-                        ) {
-                            ackPacket = decoded
-                            break
-                        }
+                    if (decoded != null &&
+                        (decoded.type == ProtocolConstants.TYPE_WELCOME || decoded.type == ProtocolConstants.TYPE_PAIR_ACK) &&
+                        !decoded.sessionId.isNullOrBlank()
+                    ) {
+                        welcomePacket = decoded
+                        break
                     }
                 } catch (_: SocketTimeoutException) {
-                    logger.warn("Pareamento", "Tentativa $attempt/3 sem resposta de ${config.serverIp}:$targetPort...")
                 }
             }
 
-            if (pairErrorReason != null) {
-                logger.error("Pareamento", "Recusado pelo PC: $pairErrorReason")
+            if (welcomePacket == null || welcomePacket.sessionId.isNullOrBlank()) {
+                logger.error("Rede", "Sem resposta de ${config.serverIp}:$targetPort.")
                 running.set(false)
                 udp.close()
                 onStatusChanged(
                     ClientStatusSnapshot(
                         state = ClientConnectionState.ERROR_OR_TIMEOUT,
-                        message = "Erro: $pairErrorReason"
+                        message = "Sem resposta (${config.serverIp})"
                     )
                 )
                 return
             }
 
-            if (ackPacket == null || ackPacket.sessionId.isNullOrBlank()) {
-                logger.error("Pareamento", "Sem resposta do PC (${config.serverIp}:$targetPort). Verifique IP, Firewall e se o servidor está rodando.")
-                running.set(false)
-                udp.close()
-                onStatusChanged(
-                    ClientStatusSnapshot(
-                        state = ClientConnectionState.ERROR_OR_TIMEOUT,
-                        message = "Sem resposta do PC (${config.serverIp})"
-                    )
-                )
-                return
-            }
-
-            val establishedSessionId = ackPacket.sessionId!!
-            val derivedKey = PairingCrypto.deriveSessionKey(pin, deviceId, clientNonce, establishedSessionId)
+            val establishedSessionId = welcomePacket.sessionId!!
+            val pcDisplay = welcomePacket.pcName?.ifBlank { config.serverIp } ?: config.serverIp
             sessionId = establishedSessionId
-            sessionKey = derivedKey
             lastServerPongMs.set(System.currentTimeMillis())
             packetsSentCount.set(0L)
 
-            logger.info("Pareamento", "Conectado com sucesso! Sessão: ${establishedSessionId.take(8)}...")
+            logger.info("Rede", "Conectado a $pcDisplay!")
             onStatusChanged(
                 ClientStatusSnapshot(
                     state = ClientConnectionState.CONNECTED,
-                    message = "Conectado (${config.sendRateHz} Hz)",
+                    message = "Conectado • $pcDisplay",
                     rttMs = 0L,
                     packetsSent = 0L
                 )
             )
 
-            // Inicia thread receptora para PONGs e detecção de desconexão
             udp.soTimeout = 500
             receiveThread = Thread({
-                runReceiveLoop(udp, derivedKey)
+                runReceiveLoop(udp)
             }, "FlightJoy-UDP-Recv").apply {
                 isDaemon = true
                 start()
             }
 
-            // Loop contínuo de transmissão de baixa latência
-            val intervalMs = (1000L / config.sendRateHz.coerceIn(20, 120)).coerceAtLeast(8L)
             var seq = 0L
             var lastPingMs = System.currentTimeMillis()
 
             while (running.get() && !udp.isClosed) {
                 val loopStart = System.currentTimeMillis()
+                val cfg = activeConfig
+                val intervalMs = (1000L / cfg.sendRateHz.coerceIn(20, 120)).coerceAtLeast(8L)
 
-                // Verifica watchdog de resposta do servidor (3.5s)
-                if (loopStart - lastServerPongMs.get() > 3500L) {
-                    logger.warn("Watchdog", "Servidor Windows parou de responder (Timeout > 3.5s).")
+                if (loopStart - lastServerPongMs.get() > 3800L) {
+                    logger.warn("Watchdog", "PC parou de responder.")
                     running.set(false)
                     onStatusChanged(
                         ClientStatusSnapshot(
                             state = ClientConnectionState.ERROR_OR_TIMEOUT,
-                            message = "Conexão Perdida com o PC"
+                            message = "Desconectado (Timeout)"
                         )
                     )
                     break
                 }
 
                 seq++
+                val rudderNorm = if (cfg.invertYaw) -controlState.combinedRudder else controlState.combinedRudder
                 val statePacket = FlightJoyPacket(
                     version = ProtocolConstants.VERSION,
                     type = ProtocolConstants.TYPE_STATE,
@@ -247,17 +313,18 @@ class UdpTelemetryClient(
                     timestampMs = loopStart,
                     pitchScaled = FlightJoyPacket.scaleAxis(controlState.pitch),
                     rollScaled = FlightJoyPacket.scaleAxis(controlState.roll),
-                    yawScaled = FlightJoyPacket.scaleAxis(controlState.yaw),
+                    yawScaled = FlightJoyPacket.scaleAxis(rudderNorm),
                     throttleScaled = FlightJoyPacket.scaleAxis(controlState.throttle),
-                    auxScaled = FlightJoyPacket.scaleAxis(controlState.aux),
-                    buttonsMask = controlState.getButtonsMask()
+                    buttonsMask = controlState.getButtonsMask(),
+                    mapPitch = cfg.mapPitchAxis,
+                    mapRoll = cfg.mapRollAxis,
+                    mapRudder = cfg.mapRudderAxis,
+                    mapThrottle = cfg.mapThrottleAxis
                 )
-                PairingCrypto.signState(statePacket, derivedKey)
                 val bytes = PacketCodec.encodeToBytes(statePacket)
                 udp.send(DatagramPacket(bytes, bytes.size))
                 val totalSent = packetsSentCount.incrementAndGet()
 
-                // Envia PING a cada 1000ms e atualiza status na UI
                 if (loopStart - lastPingMs >= 1000L) {
                     lastPingMs = loopStart
                     val ping = FlightJoyPacket(
@@ -267,14 +334,13 @@ class UdpTelemetryClient(
                         sequence = seq,
                         timestampMs = loopStart
                     )
-                    PairingCrypto.signPing(ping, derivedKey)
                     val pingBytes = PacketCodec.encodeToBytes(ping)
                     udp.send(DatagramPacket(pingBytes, pingBytes.size))
 
                     onStatusChanged(
                         ClientStatusSnapshot(
                             state = ClientConnectionState.CONNECTED,
-                            message = "Conectado • ${lastRttMs.get()} ms",
+                            message = "Conectado ($pcDisplay) • ${lastRttMs.get()} ms",
                             rttMs = lastRttMs.get(),
                             packetsSent = totalSent
                         )
@@ -289,12 +355,12 @@ class UdpTelemetryClient(
             }
         } catch (ex: Exception) {
             if (running.get()) {
-                logger.error("Rede", "Falha na comunicação UDP: ${ex.message}")
+                logger.error("Rede", "Falha UDP: ${ex.message}")
                 running.set(false)
                 onStatusChanged(
                     ClientStatusSnapshot(
                         state = ClientConnectionState.ERROR_OR_TIMEOUT,
-                        message = "Erro Rede: ${ex.localizedMessage ?: "Falha UDP"}"
+                        message = "Erro de conexão"
                     )
                 )
             }
@@ -306,34 +372,30 @@ class UdpTelemetryClient(
         }
     }
 
-    private fun runReceiveLoop(udp: DatagramSocket, activeKey: String) {
+    private fun runReceiveLoop(udp: DatagramSocket) {
         val buf = ByteArray(1024)
         while (running.get() && !udp.isClosed) {
             try {
                 val dp = DatagramPacket(buf, buf.size)
                 udp.receive(dp)
                 val pkt = PacketCodec.decodeFromBytes(dp.data, dp.length) ?: continue
-                if (pkt.type == ProtocolConstants.TYPE_PONG &&
-                    PairingCrypto.verifyPong(pkt, activeKey)
-                ) {
+                if (pkt.type == ProtocolConstants.TYPE_PONG) {
                     val now = System.currentTimeMillis()
                     lastServerPongMs.set(now)
                     if (pkt.clientTimestampMs > 0L && now >= pkt.clientTimestampMs) {
                         lastRttMs.set(now - pkt.clientTimestampMs)
                     }
                 } else if (pkt.type == ProtocolConstants.TYPE_DISCONNECT) {
-                    logger.warn("Rede", "Servidor Windows encerrou a sessão.")
                     running.set(false)
                     onStatusChanged(
                         ClientStatusSnapshot(
                             state = ClientConnectionState.DISCONNECTED,
-                            message = "Servidor Desconectou"
+                            message = "Desconectado pelo PC"
                         )
                     )
                     break
                 }
             } catch (_: SocketTimeoutException) {
-                // Normal durante o loop de recepção
             } catch (_: Exception) {
                 if (!running.get()) break
             }

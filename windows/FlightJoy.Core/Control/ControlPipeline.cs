@@ -5,7 +5,8 @@ using FlightJoy.Core.VJoy;
 namespace FlightJoy.Core.Control;
 
 /// <summary>
-/// Pipeline central que transforma pacotes de telemetria em comandos de eixos e botões vJoy.
+/// Pipeline central que transforma os pacotes enviados pelo aplicativo Android
+/// em entradas de eixos e botões vJoy, respeitando o mapeamento definido no celular.
 /// </summary>
 public sealed class ControlPipeline
 {
@@ -80,53 +81,100 @@ public sealed class ControlPipeline
             var processedSource = new Dictionary<SourceAxis, double>();
             var targetVJoyAxes = new Dictionary<VJoyAxisUsage, double>();
 
-            foreach (AxisMappingConfig mapping in _config.AxisMappings)
+            bool hasPhoneAxisMapping =
+                !string.IsNullOrWhiteSpace(packet.MapPitch) ||
+                !string.IsNullOrWhiteSpace(packet.MapRoll) ||
+                !string.IsNullOrWhiteSpace(packet.MapRudder) ||
+                !string.IsNullOrWhiteSpace(packet.MapThrottle);
+
+            if (hasPhoneAxisMapping)
             {
-                double raw = rawAxes.TryGetValue(mapping.Source, out double r) ? r : 0.0;
-                double offset = mapping.Source switch
+                // Mapeamento e curvas definidos diretamente pelo aplicativo Android
+                double pitchVal = Math.Clamp(_lastRawPitch - _calibration.PitchOffset, -1.0, 1.0);
+                double rollVal = Math.Clamp(_lastRawRoll - _calibration.RollOffset, -1.0, 1.0);
+                double rudderVal = Math.Clamp(_lastRawYaw - _calibration.YawOffset, -1.0, 1.0);
+                double throttleVal = packet.ThrottleNormalized;
+
+                processedSource[SourceAxis.Pitch] = pitchVal;
+                processedSource[SourceAxis.Roll] = rollVal;
+                processedSource[SourceAxis.Yaw] = rudderVal;
+                processedSource[SourceAxis.Throttle] = throttleVal;
+                processedSource[SourceAxis.Aux] = 0.0;
+
+                VJoyAxisUsage pitchTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapPitch, VJoyAxisUsage.Y);
+                VJoyAxisUsage rollTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapRoll, VJoyAxisUsage.X);
+                VJoyAxisUsage rudderTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapRudder, VJoyAxisUsage.RZ);
+                VJoyAxisUsage throttleTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapThrottle, VJoyAxisUsage.Z);
+
+                if (pitchTarget != VJoyAxisUsage.None)
                 {
-                    SourceAxis.Pitch => _calibration.PitchOffset,
-                    SourceAxis.Roll => _calibration.RollOffset,
-                    SourceAxis.Yaw => _calibration.YawOffset,
-                    _ => 0.0
-                };
-
-                double prev = _previousSmoothed.TryGetValue(mapping.Source, out double p) ? p : 0.0;
-                double processed = AxisCurveProcessor.ProcessAxis(
-                    rawInput: raw,
-                    centerOffset: offset,
-                    deadzone: mapping.Deadzone,
-                    exponential: mapping.Exponential,
-                    sensitivity: mapping.Sensitivity,
-                    invert: mapping.Invert,
-                    previousSmoothedOutput: prev,
-                    smoothingFactor: mapping.Smoothing);
-
-                _previousSmoothed[mapping.Source] = processed;
-                processedSource[mapping.Source] = processed;
-
-                if (mapping.TargetAxis != VJoyAxisUsage.None)
+                    targetVJoyAxes[pitchTarget] = pitchVal;
+                    feeder.SetNormalizedAxis(pitchTarget, pitchVal);
+                }
+                if (rollTarget != VJoyAxisUsage.None)
                 {
-                    targetVJoyAxes[mapping.TargetAxis] = processed;
-                    feeder.SetNormalizedAxis(mapping.TargetAxis, processed);
+                    targetVJoyAxes[rollTarget] = rollVal;
+                    feeder.SetNormalizedAxis(rollTarget, rollVal);
+                }
+                if (rudderTarget != VJoyAxisUsage.None)
+                {
+                    targetVJoyAxes[rudderTarget] = rudderVal;
+                    feeder.SetNormalizedAxis(rudderTarget, rudderVal);
+                }
+                if (throttleTarget != VJoyAxisUsage.None)
+                {
+                    targetVJoyAxes[throttleTarget] = throttleVal;
+                    feeder.SetNormalizedAxis(throttleTarget, throttleVal);
+                }
+            }
+            else
+            {
+                foreach (AxisMappingConfig mapping in _config.AxisMappings)
+                {
+                    double raw = rawAxes.TryGetValue(mapping.Source, out double r) ? r : 0.0;
+                    double offset = mapping.Source switch
+                    {
+                        SourceAxis.Pitch => _calibration.PitchOffset,
+                        SourceAxis.Roll => _calibration.RollOffset,
+                        SourceAxis.Yaw => _calibration.YawOffset,
+                        _ => 0.0
+                    };
+
+                    double prev = _previousSmoothed.TryGetValue(mapping.Source, out double p) ? p : 0.0;
+                    double processed = AxisCurveProcessor.ProcessAxis(
+                        rawInput: raw,
+                        centerOffset: offset,
+                        deadzone: mapping.Deadzone,
+                        exponential: mapping.Exponential,
+                        sensitivity: mapping.Sensitivity,
+                        invert: mapping.Invert,
+                        previousSmoothedOutput: prev,
+                        smoothingFactor: mapping.Smoothing);
+
+                    _previousSmoothed[mapping.Source] = processed;
+                    processedSource[mapping.Source] = processed;
+
+                    if (mapping.TargetAxis != VJoyAxisUsage.None)
+                    {
+                        targetVJoyAxes[mapping.TargetAxis] = processed;
+                        feeder.SetNormalizedAxis(mapping.TargetAxis, processed);
+                    }
                 }
             }
 
+            // Os 32 bits de ButtonsMask representam diretamente os botões vJoy 1..32 mapeados pelo celular
             var phoneButtons = new Dictionary<int, bool>();
-            for (int i = 1; i <= ProtocolConstants.MaxButtons; i++)
-            {
-                phoneButtons[i] = packet.IsButtonPressed(i);
-            }
-
             var targetButtons = new Dictionary<int, bool>();
-            foreach (ButtonMappingConfig btnMap in _config.ButtonMappings)
+
+            for (int btn = 1; btn <= ProtocolConstants.MaxVJoyButtons; btn++)
             {
-                bool pressed = phoneButtons.TryGetValue(btnMap.PhoneButtonNumber, out bool state) && state;
-                if (btnMap.TargetVJoyButton >= 1 && btnMap.TargetVJoyButton <= 32)
+                bool pressed = packet.IsButtonPressed(btn);
+                targetButtons[btn] = pressed;
+                if (btn <= 8)
                 {
-                    targetButtons[btnMap.TargetVJoyButton] = pressed;
-                    feeder.SetButton(btnMap.TargetVJoyButton, pressed);
+                    phoneButtons[btn] = pressed;
                 }
+                feeder.SetButton(btn, pressed);
             }
 
             return new ProcessedJoystickState

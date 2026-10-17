@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Threading;
 using FlightJoy.Core.Config;
 using FlightJoy.Core.Control;
@@ -18,29 +19,24 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly VJoyFeederService _feeder;
     private readonly ControlPipeline _pipeline;
     private readonly UdpControlServer _server;
-    private AppConfig _config;
+    private readonly AppConfig _config;
 
-    private string _connectionBadgeText = "Iniciando...";
+    private string _connectionBadgeText = "Aguardando conexão...";
     private string _vjoyBadgeText = "Verificando vJoy...";
-    private string _telemetryText = "0.0 Hz | Seq: 0 | Perdas: 0";
-    private string _calibrationText = "Centro PC: Pitch 0.0% | Roll 0.0% | Yaw 0.0%";
+    private string _telemetryText = "0.0 Hz";
+    private string _activeButtonsText = "Nenhum";
     private bool _isServerRunning;
+    private bool _isLogsVisible;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<AxisMonitorItem> Axes { get; } = [];
-    public ObservableCollection<ButtonMonitorItem> Buttons { get; } = [];
     public ObservableCollection<string> Logs { get; } = [];
-
-    public IReadOnlyList<VJoyAxisUsage> AvailableVJoyAxes { get; } =
-        Enum.GetValues<VJoyAxisUsage>();
-
-    public IReadOnlyList<int> AvailableVJoyButtons { get; } =
-        Enumerable.Range(1, 32).ToArray();
 
     public IReadOnlyList<uint> AvailableDeviceIds { get; } =
         Enumerable.Range(1, 16).Select(i => (uint)i).ToArray();
 
+    public string MachineName { get; } = UdpControlServer.GetSafeMachineName();
     public string LocalIpSummary { get; }
 
     public MainViewModel(Dispatcher dispatcher)
@@ -59,9 +55,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _server.JoystickStateUpdated += OnJoystickStateUpdated;
         _server.TelemetryUpdated += OnTelemetryUpdated;
 
-        LocalIpSummary = string.Join("  |  ", UdpControlServer.GetLocalLanIpAddresses());
+        LocalIpSummary = string.Join("  •  ", UdpControlServer.GetLocalLanIpAddresses());
 
-        RebuildMappingCollections();
+        BuildMonitorAxes();
 
         foreach (LogEntry existing in _logger.GetRecentEntries())
         {
@@ -72,8 +68,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         StartServer();
     }
 
-    public string LogDirectoryPath => _logger.LogDirectory ?? AppContext.BaseDirectory;
-
     public int UdpPort
     {
         get => _config.UdpPort;
@@ -83,6 +77,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             if (_config.UdpPort != clamped)
             {
                 _config.UdpPort = clamped;
+                ConfigManager.Save(_config);
                 OnPropertyChanged();
             }
         }
@@ -98,51 +93,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                 _config.VJoyDeviceId = value;
                 OnPropertyChanged();
                 AcquireVJoyDevice();
-                SaveConfiguration();
-            }
-        }
-    }
-
-    public string PairingPin
-    {
-        get => _config.PairingPin;
-        set
-        {
-            string cleaned = (value ?? string.Empty).Trim();
-            if (cleaned.Length >= 4 && _config.PairingPin != cleaned)
-            {
-                _config.PairingPin = cleaned;
-                _server.UpdateConfig(_config);
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public int WatchdogTimeoutMs
-    {
-        get => _config.WatchdogTimeoutMs;
-        set
-        {
-            int clamped = Math.Clamp(value, 200, 10000);
-            if (_config.WatchdogTimeoutMs != clamped)
-            {
-                _config.WatchdogTimeoutMs = clamped;
-                _server.UpdateConfig(_config);
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public bool ResetAxesOnDisconnect
-    {
-        get => _config.ResetAxesOnDisconnect;
-        set
-        {
-            if (_config.ResetAxesOnDisconnect != value)
-            {
-                _config.ResetAxesOnDisconnect = value;
-                _server.UpdateConfig(_config);
-                OnPropertyChanged();
+                ConfigManager.Save(_config);
             }
         }
     }
@@ -161,7 +112,23 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public string ServerButtonText => IsServerRunning ? "Parar Servidor UDP" : "Iniciar Servidor UDP";
+    public string ServerButtonText => IsServerRunning ? "Parar" : "Iniciar";
+
+    public bool IsLogsVisible
+    {
+        get => _isLogsVisible;
+        set
+        {
+            if (_isLogsVisible != value)
+            {
+                _isLogsVisible = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(LogsVisibility));
+            }
+        }
+    }
+
+    public Visibility LogsVisibility => IsLogsVisible ? Visibility.Visible : Visibility.Collapsed;
 
     public string ConnectionBadgeText
     {
@@ -202,35 +169,28 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public string CalibrationText
+    public string ActiveButtonsText
     {
-        get => _calibrationText;
+        get => _activeButtonsText;
         private set
         {
-            if (_calibrationText != value)
+            if (_activeButtonsText != value)
             {
-                _calibrationText = value;
+                _activeButtonsText = value;
                 OnPropertyChanged();
             }
         }
     }
 
-    private void RebuildMappingCollections()
+    private void BuildMonitorAxes()
     {
         Axes.Clear();
         foreach (AxisMappingConfig axisConfig in _config.AxisMappings)
         {
-            var item = new AxisMonitorItem(axisConfig);
-            item.MappingChanged += () => _pipeline.UpdateConfig(_config);
-            Axes.Add(item);
-        }
+            if (axisConfig.Source == SourceAxis.Aux)
+                continue;
 
-        Buttons.Clear();
-        foreach (ButtonMappingConfig btnConfig in _config.ButtonMappings)
-        {
-            var item = new ButtonMonitorItem(btnConfig);
-            item.MappingChanged += () => _pipeline.UpdateConfig(_config);
-            Buttons.Add(item);
+            Axes.Add(new AxisMonitorItem(axisConfig));
         }
     }
 
@@ -250,8 +210,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.Error("Rede", $"Não foi possível iniciar servidor na porta {_config.UdpPort}: {ex.Message}");
-            ConnectionBadgeText = $"Erro Porta {_config.UdpPort}";
+            _logger.Error("Rede", $"Erro na porta {_config.UdpPort}: {ex.Message}");
+            ConnectionBadgeText = $"Erro porta {_config.UdpPort}";
             IsServerRunning = false;
         }
     }
@@ -270,51 +230,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             StartServer();
     }
 
-    public void GenerateNewPin()
+    public void ToggleLogs()
     {
-        PairingPin = PairingAuthenticator.GenerateSixDigitPin();
-        SaveConfiguration();
-        _logger.Info("Segurança", $"Novo PIN de pareamento gerado: {PairingPin}");
-    }
-
-    public void CalibrateCenterOnPc()
-    {
-        _pipeline.CalibrateCenterFromLastReading();
-        var cal = _pipeline.Calibration;
-        CalibrationText = $"Centro PC: Pitch {cal.PitchOffset * 100:+0.0;-0.0;0.0}% | Roll {cal.RollOffset * 100:+0.0;-0.0;0.0}% | Yaw {cal.YawOffset * 100:+0.0;-0.0;0.0}%";
-        _logger.Info("Calibração", $"Centro calibrado no PC ({CalibrationText}).");
-    }
-
-    public void ResetPcCalibration()
-    {
-        _pipeline.ResetCalibration();
-        _feeder.ResetToNeutral();
-        CalibrationText = "Centro PC: Pitch 0.0% | Roll 0.0% | Yaw 0.0%";
-        _logger.Info("Calibração", "Offsets de calibração do PC zerados e eixos neutralizados.");
-    }
-
-    public void SaveConfiguration()
-    {
-        _pipeline.UpdateConfig(_config);
-        _server.UpdateConfig(_config);
-        ConfigManager.Save(_config);
-        _logger.Info("Config", "Configurações de rede e mapeamento salvas em flightjoy.config.json.");
-    }
-
-    public void RestoreDefaults()
-    {
-        _config.AxisMappings = AppConfig.CreateDefaultAxisMappings();
-        _config.ButtonMappings = AppConfig.CreateDefaultButtonMappings();
-        _pipeline.UpdateConfig(_config);
-        RebuildMappingCollections();
-        ConfigManager.Save(_config);
-        _logger.Info("Config", "Mapeamento de eixos e botões restaurado para o padrão de fábrica.");
-    }
-
-    public void ClearLogs()
-    {
-        _logger.ClearMemory();
-        Logs.Clear();
+        IsLogsVisible = !IsLogsVisible;
     }
 
     private void OnConnectionStateChanged(ConnectionState state, ConnectedDeviceInfo? device)
@@ -324,9 +242,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             ConnectionBadgeText = state switch
             {
                 ConnectionState.Stopped => "Servidor Parado",
-                ConnectionState.Listening => $"Aguardando Celular (Porta {_config.UdpPort})",
-                ConnectionState.PairedAndConnected => $"Conectado: {device?.DeviceName} ({device?.RemoteEndpoint})",
-                ConnectionState.DisconnectedTimeout => $"Desconectado (Timeout — {device?.DeviceName ?? "Celular"})",
+                ConnectionState.Listening => "Aguardando Celular...",
+                ConnectionState.PairedAndConnected => $"Conectado — {device?.DeviceName}",
+                ConnectionState.DisconnectedTimeout => "Desconectado (Sinal Perdido)",
                 _ => state.ToString()
             };
         });
@@ -338,19 +256,20 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             foreach (AxisMonitorItem axisItem in Axes)
             {
-                if (state.RawAxes.TryGetValue(axisItem.Source, out double raw))
-                    axisItem.RawNormalized = raw;
                 if (state.ProcessedSourceAxes.TryGetValue(axisItem.Source, out double proc))
+                {
                     axisItem.ProcessedNormalized = proc;
-
-                axisItem.VJoyRawValue = _feeder.GetLastRawAxisValue(axisItem.TargetAxis);
+                }
             }
 
-            foreach (ButtonMonitorItem btnItem in Buttons)
-            {
-                if (state.PhoneButtons.TryGetValue(btnItem.PhoneButtonNumber, out bool pressed))
-                    btnItem.IsPressed = pressed;
-            }
+            var pressedList = state.TargetVJoyButtons
+                .Where(kv => kv.Value)
+                .Select(kv => $"B{kv.Key}")
+                .ToList();
+
+            ActiveButtonsText = pressedList.Count > 0
+                ? string.Join(", ", pressedList)
+                : "Nenhum";
         });
     }
 
@@ -358,8 +277,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         _dispatcher.BeginInvoke(() =>
         {
-            TelemetryText =
-                $"Taxa: {stats.CurrentPacketsPerSecond:0.0} Hz  |  Recebidos: {stats.TotalPacketsReceived}  |  Perdas/Fora de Ordem: {stats.OutOfOrderOrDroppedPackets}  |  Inatividade: {stats.LastPacketAgeMs} ms";
+            TelemetryText = $"{stats.CurrentPacketsPerSecond:0.0} Hz  •  Pacotes: {stats.TotalPacketsReceived}";
         });
     }
 
@@ -368,7 +286,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             Logs.Add(entry.ToString());
-            while (Logs.Count > 300)
+            while (Logs.Count > 200)
             {
                 Logs.RemoveAt(0);
             }

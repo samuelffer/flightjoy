@@ -3,13 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="BgPrimary" Color="#0F172A"/>
-        <SolidColorBrush x:Key="BgCard" Color="#1E293B"/>
-        <SolidColorBrush x:Key="BgInput" Color="#0B1120"/>
-        <SolidColorBrush x:Key="TextPrimary" Color="#F8FAFC"/>
-        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
-        <SolidColorBrush x:Key="AccentBlue" Color="#38BDF8"/>
-        <SolidColorBrush x:Key="AccentGreen" Color="#22C55E"/>
-        <SolidColorBrush x:Key="BorderSubtle" Color="#334155"/>
+        <SolidColorBrush x:Key="BgPrimary" Color="#0A0A0A"/>
+        <SolidColorBrush x:Key="BgCard" Color="#161616"/>
+        <SolidColorBrush x:Key="BgInput" Color="#222222"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#9E9E9E"/>
+        <SolidColorBrush x:Key="AccentWhite" Color="#F5F5F5"/>
+        <SolidColorBrush x:Key="BorderSubtle" Color="#2E2E2E"/>
     </Application.Resources>
 </Application>
