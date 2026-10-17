@@ -21,11 +21,13 @@ data class FlightClientConfig(
     var invertPitch: Boolean = false,
     var invertRoll: Boolean = false,
     var invertYaw: Boolean = false,
-    var enableYaw: Boolean = false, // Como há o slider dedicado de Rudder, o Yaw do giroscópio é opcional
+    var enableYaw: Boolean = false,
+    var rudderAutoCenter: Boolean = true,
     var mapPitchAxis: String = "Y",
     var mapRollAxis: String = "X",
     var mapRudderAxis: String = "RZ",
     var mapThrottleAxis: String = "Z",
+    var mapReverseAxis: String = "SL0",
     var buttons: MutableList<PhoneButtonConfig> = createDefaultButtons()
 ) {
     companion object {

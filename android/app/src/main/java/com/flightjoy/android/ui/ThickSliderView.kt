@@ -39,6 +39,7 @@ class ThickSliderView @JvmOverloads constructor(
 
     var enableSmoothDamping: Boolean = true
     var dragSensitivityFactor: Float = 0.88f
+    var returnToCenterOnRelease: Boolean = false
 
     private var targetNormalized: Float = -1.0f
     private var currentNormalized: Float = -1.0f
@@ -276,6 +277,11 @@ class ThickSliderView @JvmOverloads constructor(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (isDraggingThumb) {
                     isDraggingThumb = false
+                    if (returnToCenterOnRelease) {
+                        targetNormalized = 0.0f
+                        currentNormalized = 0.0f
+                        onValueChanged?.invoke(0.0f)
+                    }
                     invalidate()
                     return true
                 }

@@ -27,6 +27,18 @@ class SensorController(
     @Volatile
     var currentConfig: FlightClientConfig = FlightClientConfig()
 
+    @Volatile
+    var isGyroLocked: Boolean = false
+        set(value) {
+            field = value
+            if (value) {
+                controlState.pitch = 0.0f
+                controlState.roll = 0.0f
+                controlState.yaw = 0.0f
+                onOrientationUpdated(NormalizedOrientation(0f, 0f, 0f, 0f, 0f, 0f))
+            }
+        }
+
     val isSensorAvailable: Boolean
         get() = rotationSensor != null
 
@@ -62,6 +74,13 @@ class SensorController(
 
         SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
         val processed = calibrator.processRotationMatrix(rotationMatrix, currentConfig)
+
+        if (isGyroLocked) {
+            controlState.pitch = 0.0f
+            controlState.roll = 0.0f
+            controlState.yaw = 0.0f
+            return
+        }
 
         controlState.pitch = processed.pitch
         controlState.roll = processed.roll

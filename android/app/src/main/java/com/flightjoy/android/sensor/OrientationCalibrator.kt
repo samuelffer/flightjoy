@@ -51,7 +51,8 @@ class OrientationCalibrator {
         val angles = OrientationMath.extractAnglesDegrees(rRel, config.landscapeYokeMode)
         val maxDeg = config.maxDeflectionDeg.coerceAtLeast(15.0f)
 
-        val rawPitch = (angles.pitchDeg / maxDeg).coerceIn(-1.0f, 1.0f)
+        // Pitch nativo invertido por padrão (puxar/inclinar para trás = cabrar, para frente = picar)
+        val rawPitch = (-angles.pitchDeg / maxDeg).coerceIn(-1.0f, 1.0f)
         val rawRoll = (angles.rollDeg / maxDeg).coerceIn(-1.0f, 1.0f)
         val rawYaw = if (config.enableYaw) {
             (angles.yawDeg / maxDeg).coerceIn(-1.0f, 1.0f)

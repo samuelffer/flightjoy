@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootContainer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_primary"
@@ -10,18 +11,19 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
-        android:padding="10dp">
+        android:padding="8dp">
 
-        <!-- LADO ESQUERDO: Slider Vertical Grosso de Potência (Throttle) -->
+        <!-- LADO ESQUERDO: Slider Vertical Grosso de Potência / Reverso -->
         <LinearLayout
-            android:layout_width="86dp"
+            android:layout_width="82dp"
             android:layout_height="match_parent"
             android:background="@color/bg_card"
             android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:padding="7dp">
 
             <TextView
+                android:id="@+id/txtThrottleTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="POTÊNCIA"
@@ -46,12 +48,45 @@
                 android:layout_weight="1" />
         </LinearLayout>
 
-        <!-- CENTRO: Botão Menu (3 Listras), Indicador do Giroscópio e Calibração -->
+        <!-- COLUNA LATERAL AO LADO DO THROTTLE: Switch Retangular Estilizado do Modo Reverso -->
+        <!-- Posicionado no topo com recuo seguro para evitar toques acidentais ao mover o throttle -->
+        <LinearLayout
+            android:layout_width="50dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="6dp"
+            android:gravity="top|center_horizontal"
+            android:orientation="vertical"
+            android:paddingTop="6dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:text="MODO"
+                android:textColor="#757575"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnReverseSwitch"
+                android:layout_width="44dp"
+                android:layout_height="62dp"
+                android:background="@drawable/bg_reverse_switch_off"
+                android:gravity="center"
+                android:padding="2dp"
+                android:text="REV\nOFF"
+                android:textAllCaps="false"
+                android:textColor="#9E9E9E"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- CENTRO (Mais compacto): Botão Menu (3 Listras), Indicador do Giroscópio e Calibração -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginHorizontal="10dp"
-            android:layout_weight="1.15"
+            android:layout_marginHorizontal="8dp"
+            android:layout_weight="0.92"
             android:background="@color/bg_card"
             android:orientation="vertical"
             android:padding="8dp">
@@ -65,52 +100,52 @@
 
                 <Button
                     android:id="@+id/btnMenu"
-                    android:layout_width="42dp"
-                    android:layout_height="36dp"
+                    android:layout_width="40dp"
+                    android:layout_height="34dp"
                     android:backgroundTint="#262626"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
                     android:padding="0dp"
                     android:text="☰"
                     android:textColor="@color/text_primary"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/txtConnectionStatus"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="8dp"
+                    android:layout_marginHorizontal="6dp"
                     android:layout_weight="1"
                     android:ellipsize="end"
                     android:gravity="center"
                     android:singleLine="true"
                     android:text="Desconectado"
                     android:textColor="@color/text_secondary"
-                    android:textSize="11sp"
+                    android:textSize="10sp"
                     android:textStyle="bold" />
 
                 <Button
                     android:id="@+id/btnCalibrate"
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
+                    android:layout_height="34dp"
                     android:backgroundTint="#262626"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
-                    android:minWidth="74dp"
-                    android:paddingHorizontal="10dp"
+                    android:minWidth="68dp"
+                    android:paddingHorizontal="8dp"
                     android:text="Calibrar"
                     android:textAllCaps="false"
                     android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
+                    android:textSize="10sp" />
             </LinearLayout>
 
-            <!-- Indicador do Giroscópio no Meio -->
+            <!-- Indicador do Giroscópio Compacto no Meio (Clique no centro trava/destrava) -->
             <com.flightjoy.android.ui.VirtualStickView
                 android:id="@+id/virtualStickView"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_marginVertical="4dp"
+                android:layout_marginVertical="2dp"
                 android:layout_weight="1" />
 
             <TextView
@@ -120,7 +155,7 @@
                 android:gravity="center"
                 android:text="PITCH +0%   •   ROLL +0%"
                 android:textColor="@color/text_secondary"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:typeface="monospace" />
         </LinearLayout>
 
@@ -128,7 +163,7 @@
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="1.45"
+            android:layout_weight="1.48"
             android:background="@color/bg_card"
             android:orientation="vertical"
             android:padding="8dp">
@@ -136,9 +171,9 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
                 android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:layout_marginBottom="4dp">
+                android:orientation="horizontal">
 
                 <TextView
                     android:layout_width="0dp"
@@ -152,7 +187,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Segure um botão p/ editar"
+                    android:text="Segure p/ editar"
                     android:textColor="#666666"
                     android:textSize="10sp" />
             </LinearLayout>
@@ -278,7 +313,7 @@
                     android:textSize="11sp" />
             </GridLayout>
 
-            <!-- LADO DIREITO INFERIOR: Slider Grosso do Rudder (Pedais) -->
+            <!-- LADO DIREITO INFERIOR: Slider Grosso do Rudder (Pedais) + Alternador Auto-Centro / Livre -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -310,18 +345,21 @@
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
+                    <!-- Botão que alterna se o Rudder volta ao centro ao soltar ou fica livre -->
                     <Button
-                        android:id="@+id/btnRudderCenter"
-                        android:layout_width="60dp"
+                        android:id="@+id/btnRudderMode"
+                        android:layout_width="wrap_content"
                         android:layout_height="26dp"
-                        android:backgroundTint="#262626"
+                        android:backgroundTint="#303030"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="Centrar"
+                        android:minWidth="96dp"
+                        android:paddingHorizontal="8dp"
+                        android:text="Auto-Centro: ON"
                         android:textAllCaps="false"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="10sp" />
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <com.flightjoy.android.ui.ThickSliderView
@@ -341,7 +379,7 @@
         android:background="#CC000000"
         android:clickable="true"
         android:focusable="true"
-        android:padding="20dp"
+        android:padding="18dp"
         android:visibility="gone">
 
         <LinearLayout
@@ -502,7 +540,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Pitch (Arfagem)"
+                                    android:text="Pitch"
                                     android:textColor="@color/text_secondary"
                                     android:textSize="11sp" />
                                 <Spinner
@@ -519,7 +557,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Roll (Rolagem)"
+                                    android:text="Roll"
                                     android:textColor="@color/text_secondary"
                                     android:textSize="11sp" />
                                 <Spinner
@@ -536,7 +574,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Rudder (Pedais)"
+                                    android:text="Rudder"
                                     android:textColor="@color/text_secondary"
                                     android:textSize="11sp" />
                                 <Spinner
@@ -553,11 +591,28 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Throttle (Potência)"
+                                    android:text="Throttle"
                                     android:textColor="@color/text_secondary"
                                     android:textSize="11sp" />
                                 <Spinner
                                     android:id="@+id/spnMapThrottle"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="36dp" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Reverso"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="11sp" />
+                                <Spinner
+                                    android:id="@+id/spnMapReverse"
                                     android:layout_width="match_parent"
                                     android:layout_height="36dp" />
                             </LinearLayout>

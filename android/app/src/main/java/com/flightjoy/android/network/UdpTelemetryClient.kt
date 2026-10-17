@@ -315,11 +315,13 @@ class UdpTelemetryClient(
                     rollScaled = FlightJoyPacket.scaleAxis(controlState.roll),
                     yawScaled = FlightJoyPacket.scaleAxis(rudderNorm),
                     throttleScaled = FlightJoyPacket.scaleAxis(controlState.throttle),
+                    auxScaled = FlightJoyPacket.scaleAxis(controlState.reverseThrottle),
                     buttonsMask = controlState.getButtonsMask(),
                     mapPitch = cfg.mapPitchAxis,
                     mapRoll = cfg.mapRollAxis,
                     mapRudder = cfg.mapRudderAxis,
-                    mapThrottle = cfg.mapThrottleAxis
+                    mapThrottle = cfg.mapThrottleAxis,
+                    mapReverse = cfg.mapReverseAxis
                 )
                 val bytes = PacketCodec.encodeToBytes(statePacket)
                 udp.send(DatagramPacket(bytes, bytes.size))

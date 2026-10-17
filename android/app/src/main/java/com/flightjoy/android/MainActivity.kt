@@ -3,13 +3,14 @@ package com.flightjoy.android
 import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
-import android.widget.AdapterView
+import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
@@ -21,6 +22,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatButton
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.flightjoy.android.config.AppPreferences
 import com.flightjoy.android.config.FlightClientConfig
 import com.flightjoy.android.config.PhoneButtonConfig
@@ -47,6 +52,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sensorController: SensorController
     private lateinit var telemetryClient: UdpTelemetryClient
 
+    private var isReverseThrottleMode: Boolean = false
+
     // Cockpit Views
     private lateinit var btnMenu: Button
     private lateinit var btnCalibrate: Button
@@ -54,12 +61,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var virtualStickView: VirtualStickView
     private lateinit var txtOrientationValues: TextView
 
+    private lateinit var txtThrottleTitle: TextView
     private lateinit var sliderThrottle: ThickSliderView
     private lateinit var txtThrottleValue: TextView
+    private lateinit var btnReverseSwitch: AppCompatButton
 
     private lateinit var sliderRudder: ThickSliderView
     private lateinit var txtRudderValue: TextView
-    private lateinit var btnRudderCenter: Button
+    private lateinit var btnRudderMode: Button
 
     private val cockpitButtons = mutableMapOf<Int, Button>()
 
@@ -75,6 +84,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var spnMapRoll: Spinner
     private lateinit var spnMapRudder: Spinner
     private lateinit var spnMapThrottle: Spinner
+    private lateinit var spnMapReverse: Spinner
 
     private lateinit var txtSensitivityLabel: TextView
     private lateinit var seekSensitivity: SeekBar
@@ -91,6 +101,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableImmersiveFullscreen()
         setContentView(R.layout.activity_main)
 
         prefs = AppPreferences(this)
@@ -98,7 +109,8 @@ class MainActivity : AppCompatActivity() {
         val deviceId = prefs.getOrCreateDeviceId()
 
         bindViews()
-        setupThickSliders()
+        setupThickSlidersAndReverseSwitch()
+        setupGyroCenterLock()
         setupFlightButtons()
         setupMenuOverlay()
 
@@ -136,6 +148,7 @@ class MainActivity : AppCompatActivity() {
         btnCloseMenu.setOnClickListener {
             saveMenuIntoConfig()
             menuOverlay.visibility = View.GONE
+            enableImmersiveFullscreen()
         }
 
         btnCalibrate.setOnClickListener {
@@ -146,8 +159,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        enableImmersiveFullscreen()
         sensorController.currentConfig = config
         sensorController.start()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            enableImmersiveFullscreen()
+        }
     }
 
     override fun onPause() {
@@ -160,6 +181,24 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    /**
+     * Esconde barra de status (notificações, bateria, hora) e barra de botões de navegação
+     * para aproveitar 100% da tela em modo paisagem.
+     */
+    private fun enableImmersiveFullscreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
+
     private fun bindViews() {
         btnMenu = findViewById(R.id.btnMenu)
         btnCalibrate = findViewById(R.id.btnCalibrate)
@@ -167,12 +206,14 @@ class MainActivity : AppCompatActivity() {
         virtualStickView = findViewById(R.id.virtualStickView)
         txtOrientationValues = findViewById(R.id.txtOrientationValues)
 
+        txtThrottleTitle = findViewById(R.id.txtThrottleTitle)
         sliderThrottle = findViewById(R.id.sliderThrottle)
         txtThrottleValue = findViewById(R.id.txtThrottleValue)
+        btnReverseSwitch = findViewById(R.id.btnReverseSwitch)
 
         sliderRudder = findViewById(R.id.sliderRudder)
         txtRudderValue = findViewById(R.id.txtRudderValue)
-        btnRudderCenter = findViewById(R.id.btnRudderCenter)
+        btnRudderMode = findViewById(R.id.btnRudderMode)
 
         cockpitButtons[1] = findViewById(R.id.btnB1)
         cockpitButtons[2] = findViewById(R.id.btnB2)
@@ -194,6 +235,7 @@ class MainActivity : AppCompatActivity() {
         spnMapRoll = findViewById(R.id.spnMapRoll)
         spnMapRudder = findViewById(R.id.spnMapRudder)
         spnMapThrottle = findViewById(R.id.spnMapThrottle)
+        spnMapReverse = findViewById(R.id.spnMapReverse)
 
         txtSensitivityLabel = findViewById(R.id.txtSensitivityLabel)
         seekSensitivity = findViewById(R.id.seekSensitivity)
@@ -209,19 +251,38 @@ class MainActivity : AppCompatActivity() {
         btnResetButtons = findViewById(R.id.btnResetButtons)
     }
 
-    private fun setupThickSliders() {
-        // Slider Esquerdo: Potência (Vertical, suave, só move pelo quadradinho)
+    private fun setupThickSlidersAndReverseSwitch() {
+        // Slider Esquerdo: Potência / Reverso (Vertical, suave, só move pelo quadradinho)
         sliderThrottle.apply {
             isVertical = true
             isBipolarCenter = false
             enableSmoothDamping = true
             dragSensitivityFactor = 0.85f
+            returnToCenterOnRelease = false
             onValueChanged = { normalized ->
-                controlState.throttle = normalized
                 val pct = (((normalized + 1.0f) * 0.5f) * 100.0f).roundToInt()
-                txtThrottleValue.text = "$pct%"
+                if (isReverseThrottleMode) {
+                    controlState.throttle = -1.0f
+                    controlState.reverseThrottle = normalized
+                    txtThrottleValue.text = "REV $pct%"
+                } else {
+                    controlState.reverseThrottle = -1.0f
+                    controlState.throttle = normalized
+                    txtThrottleValue.text = "$pct%"
+                }
             }
             setNormalizedValueImmediate(-1.0f)
+        }
+
+        // Botão Switch Retangular Estilizado do Modo Reverso
+        updateReverseSwitchVisual()
+        btnReverseSwitch.setOnClickListener {
+            isReverseThrottleMode = !isReverseThrottleMode
+            // Ao alternar entre Throttle Normal e Modo Reverso, zera a alavanca para segurança
+            controlState.throttle = -1.0f
+            controlState.reverseThrottle = -1.0f
+            sliderThrottle.setNormalizedValueImmediate(-1.0f)
+            updateReverseSwitchVisual()
         }
 
         // Slider Direito Inferior: Rudder / Pedais (Horizontal, centrado em 0%, só move pelo quadradinho)
@@ -230,6 +291,7 @@ class MainActivity : AppCompatActivity() {
             isBipolarCenter = true
             enableSmoothDamping = false
             dragSensitivityFactor = 0.90f
+            returnToCenterOnRelease = config.rudderAutoCenter
             onValueChanged = { normalized ->
                 controlState.rudderSlider = normalized
                 val pct = (normalized * 100.0f).roundToInt()
@@ -238,8 +300,55 @@ class MainActivity : AppCompatActivity() {
             setNormalizedValueImmediate(0.0f)
         }
 
-        btnRudderCenter.setOnClickListener {
-            sliderRudder.setNormalizedValueImmediate(0.0f)
+        updateRudderModeButtonVisual()
+        btnRudderMode.setOnClickListener {
+            config.rudderAutoCenter = !config.rudderAutoCenter
+            sliderRudder.returnToCenterOnRelease = config.rudderAutoCenter
+            if (config.rudderAutoCenter) {
+                sliderRudder.setNormalizedValueImmediate(0.0f)
+            }
+            prefs.saveConfig(config)
+            updateRudderModeButtonVisual()
+        }
+    }
+
+    private fun updateReverseSwitchVisual() {
+        if (isReverseThrottleMode) {
+            btnReverseSwitch.setBackgroundResource(R.drawable.bg_reverse_switch_on)
+            btnReverseSwitch.text = "REV\nATIVO"
+            btnReverseSwitch.setTextColor(Color.parseColor("#0A0A0A"))
+            txtThrottleTitle.text = "REVERSO"
+            txtThrottleTitle.setTextColor(Color.parseColor("#FFFFFF"))
+        } else {
+            btnReverseSwitch.setBackgroundResource(R.drawable.bg_reverse_switch_off)
+            btnReverseSwitch.text = "REV\nOFF"
+            btnReverseSwitch.setTextColor(Color.parseColor("#9E9E9E"))
+            txtThrottleTitle.text = "POTÊNCIA"
+            txtThrottleTitle.setTextColor(Color.parseColor("#9E9E9E"))
+        }
+    }
+
+    private fun updateRudderModeButtonVisual() {
+        if (config.rudderAutoCenter) {
+            btnRudderMode.text = "Auto-Centro: ON"
+            btnRudderMode.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#E0E0E0"))
+            btnRudderMode.setTextColor(Color.parseColor("#0A0A0A"))
+        } else {
+            btnRudderMode.text = "Modo: Livre"
+            btnRudderMode.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#262626"))
+            btnRudderMode.setTextColor(Color.parseColor("#BDBDBD"))
+        }
+    }
+
+    private fun setupGyroCenterLock() {
+        virtualStickView.onCenterLockChanged = { locked ->
+            sensorController.isGyroLocked = locked
+            if (locked) {
+                txtOrientationValues.text = "GIROSCÓPIO TRAVADO (0%)"
+                txtOrientationValues.setTextColor(Color.parseColor("#FFFFFF"))
+            } else {
+                txtOrientationValues.setTextColor(Color.parseColor("#9E9E9E"))
+            }
         }
     }
 
@@ -344,7 +453,7 @@ class MainActivity : AppCompatActivity() {
         spnVJoy.adapter = adapter
         spnVJoy.setSelection((cfg.targetVJoyButton - 1).coerceIn(0, 31))
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setView(view)
             .setPositiveButton("Salvar") { _, _ ->
                 controlState.setButtonPressed(cfg.targetVJoyButton, false)
@@ -354,9 +463,17 @@ class MainActivity : AppCompatActivity() {
                 prefs.saveConfig(config)
                 telemetryClient.activeConfig = config
                 refreshAllButtonLabelsAndColors()
+                enableImmersiveFullscreen()
             }
-            .setNegativeButton("Cancelar", null)
-            .show()
+            .setNegativeButton("Cancelar") { _, _ ->
+                enableImmersiveFullscreen()
+            }
+            .create()
+
+        dialog.setOnDismissListener {
+            enableImmersiveFullscreen()
+        }
+        dialog.show()
     }
 
     private fun setupMenuOverlay() {
@@ -366,6 +483,7 @@ class MainActivity : AppCompatActivity() {
         spnMapRoll.adapter = axisAdapter
         spnMapRudder.adapter = axisAdapter
         spnMapThrottle.adapter = axisAdapter
+        spnMapReverse.adapter = axisAdapter
 
         populateMenuFromConfig()
 
@@ -405,6 +523,7 @@ class MainActivity : AppCompatActivity() {
                 saveMenuIntoConfig()
                 telemetryClient.connect(config)
                 menuOverlay.visibility = View.GONE
+                enableImmersiveFullscreen()
             }
         }
 
@@ -440,6 +559,7 @@ class MainActivity : AppCompatActivity() {
         spnMapRoll.setSelection(axes.indexOf(config.mapRollAxis).coerceAtLeast(0))
         spnMapRudder.setSelection(axes.indexOf(config.mapRudderAxis).coerceAtLeast(0))
         spnMapThrottle.setSelection(axes.indexOf(config.mapThrottleAxis).coerceAtLeast(0))
+        spnMapReverse.setSelection(axes.indexOf(config.mapReverseAxis).coerceAtLeast(0))
 
         seekSensitivity.progress = (config.sensitivity * 100).roundToInt().coerceIn(25, 250)
         txtSensitivityLabel.text = String.format(Locale.US, "Sensibilidade do Giroscópio: %.2fx", config.sensitivity)
@@ -465,6 +585,7 @@ class MainActivity : AppCompatActivity() {
         config.mapRollAxis = axes.getOrElse(spnMapRoll.selectedItemPosition) { "X" }
         config.mapRudderAxis = axes.getOrElse(spnMapRudder.selectedItemPosition) { "RZ" }
         config.mapThrottleAxis = axes.getOrElse(spnMapThrottle.selectedItemPosition) { "Z" }
+        config.mapReverseAxis = axes.getOrElse(spnMapReverse.selectedItemPosition) { "SL0" }
 
         config.sensitivity = seekSensitivity.progress.coerceAtLeast(25) / 100.0f
         config.deadzone = seekDeadzone.progress / 100.0f
@@ -486,6 +607,11 @@ class MainActivity : AppCompatActivity() {
             rollNorm = orientation.roll,
             dz = config.deadzone
         )
+
+        if (virtualStickView.isLocked) {
+            txtOrientationValues.text = "GIROSCÓPIO TRAVADO (0%)"
+            return
+        }
 
         val pPct = (orientation.pitch * 100.0f).roundToInt()
         val rPct = (orientation.roll * 100.0f).roundToInt()

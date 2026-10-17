@@ -21,6 +21,9 @@ class ControlState {
     @Volatile
     var throttle: Float = -1.0f // -1.0f = 0% potência; +1.0f = 100% potência
 
+    @Volatile
+    var reverseThrottle: Float = -1.0f // -1.0f = 0% reverso; +1.0f = 100% reverso
+
     val combinedRudder: Float
         get() = (rudderSlider + yaw).coerceIn(-1.0f, 1.0f)
 

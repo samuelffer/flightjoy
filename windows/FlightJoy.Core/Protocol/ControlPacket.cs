@@ -71,10 +71,9 @@ public sealed class FlightJoyPacket
     [JsonPropertyName("t")]
     public int ThrottleScaled { get; set; }
 
-    /// <summary>Compatibilidade opcional</summary>
+    /// <summary>Throttle Reverso (3º slider acionado pelo switch REV) escalado [-10000, 10000]</summary>
     [JsonPropertyName("a")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public int AuxScaled { get; set; }
+    public int AuxScaled { get; set; } = -10000;
 
     /// <summary>
     /// Máscara de 32 bits dos botões vJoy já mapeados pelo celular
@@ -102,6 +101,11 @@ public sealed class FlightJoyPacket
     [JsonPropertyName("mt")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MapThrottle { get; set; }
+
+    /// <summary>Eixo vJoy alvo para Throttle Reverso enviado pelo celular (ex: "SL0")</summary>
+    [JsonPropertyName("ma")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MapReverse { get; set; }
 
     [JsonPropertyName("mac")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

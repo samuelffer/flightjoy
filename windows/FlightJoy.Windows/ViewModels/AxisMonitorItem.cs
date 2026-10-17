@@ -18,6 +18,12 @@ public sealed class AxisMonitorItem : INotifyPropertyChanged
     public AxisMonitorItem(AxisMappingConfig model)
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
+        if (_model.Source is SourceAxis.Throttle or SourceAxis.Aux)
+        {
+            _rawNormalized = -1.0;
+            _processedNormalized = -1.0;
+            _vjoyRawValue = MockVJoyFeeder.DefaultMin;
+        }
     }
 
     public AxisMappingConfig Model => _model;
@@ -30,6 +36,7 @@ public sealed class AxisMonitorItem : INotifyPropertyChanged
         SourceAxis.Roll => "Roll (Rolagem)",
         SourceAxis.Yaw => "Rudder (Pedais)",
         SourceAxis.Throttle => "Throttle (Potência)",
+        SourceAxis.Aux => "Reverso (Throttle)",
         _ => _model.Source.ToString()
     };
 
@@ -167,7 +174,9 @@ public sealed class AxisMonitorItem : INotifyPropertyChanged
 
     public string RawPercentText => $"{RawNormalized * 100.0:+00.0;-00.0;0.0}%";
 
-    public string ProcessedPercentText => $"{ProcessedNormalized * 100.0:+00.0;-00.0;0.0}%";
+    public string ProcessedPercentText => _model.Source is SourceAxis.Throttle or SourceAxis.Aux
+        ? $"{(ProcessedNormalized + 1.0) * 50.0:0.0}%"
+        : $"{ProcessedNormalized * 100.0:+00.0;-00.0;0.0}%";
 
     public int VJoyRawValue
     {

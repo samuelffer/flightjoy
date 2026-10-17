@@ -94,17 +94,19 @@ public sealed class ControlPipeline
                 double rollVal = Math.Clamp(_lastRawRoll - _calibration.RollOffset, -1.0, 1.0);
                 double rudderVal = Math.Clamp(_lastRawYaw - _calibration.YawOffset, -1.0, 1.0);
                 double throttleVal = packet.ThrottleNormalized;
+                double reverseVal = packet.AuxNormalized;
 
                 processedSource[SourceAxis.Pitch] = pitchVal;
                 processedSource[SourceAxis.Roll] = rollVal;
                 processedSource[SourceAxis.Yaw] = rudderVal;
                 processedSource[SourceAxis.Throttle] = throttleVal;
-                processedSource[SourceAxis.Aux] = 0.0;
+                processedSource[SourceAxis.Aux] = reverseVal;
 
                 VJoyAxisUsage pitchTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapPitch, VJoyAxisUsage.Y);
                 VJoyAxisUsage rollTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapRoll, VJoyAxisUsage.X);
                 VJoyAxisUsage rudderTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapRudder, VJoyAxisUsage.RZ);
                 VJoyAxisUsage throttleTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapThrottle, VJoyAxisUsage.Z);
+                VJoyAxisUsage reverseTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapReverse, VJoyAxisUsage.SL0);
 
                 if (pitchTarget != VJoyAxisUsage.None)
                 {
@@ -125,6 +127,11 @@ public sealed class ControlPipeline
                 {
                     targetVJoyAxes[throttleTarget] = throttleVal;
                     feeder.SetNormalizedAxis(throttleTarget, throttleVal);
+                }
+                if (reverseTarget != VJoyAxisUsage.None)
+                {
+                    targetVJoyAxes[reverseTarget] = reverseVal;
+                    feeder.SetNormalizedAxis(reverseTarget, reverseVal);
                 }
             }
             else

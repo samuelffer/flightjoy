@@ -72,7 +72,7 @@ data class FlightJoyPacket(
     var throttleScaled: Int = 0,
 
     @SerializedName("a")
-    var auxScaled: Int = 0,
+    var auxScaled: Int = -10000,
 
     @SerializedName("b")
     var buttonsMask: Int = 0,
@@ -88,6 +88,9 @@ data class FlightJoyPacket(
 
     @SerializedName("mt")
     var mapThrottle: String? = null,
+
+    @SerializedName("ma")
+    var mapReverse: String? = null,
 
     @SerializedName("mac")
     var mac: String? = null

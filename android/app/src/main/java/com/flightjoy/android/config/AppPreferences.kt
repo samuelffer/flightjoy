@@ -40,10 +40,12 @@ class AppPreferences(context: Context) {
             invertRoll = prefs.getBoolean("invert_roll", false),
             invertYaw = prefs.getBoolean("invert_yaw", false),
             enableYaw = prefs.getBoolean("enable_yaw", false),
+            rudderAutoCenter = prefs.getBoolean("rudder_auto_center", true),
             mapPitchAxis = prefs.getString("map_pitch", "Y") ?: "Y",
             mapRollAxis = prefs.getString("map_roll", "X") ?: "X",
             mapRudderAxis = prefs.getString("map_rudder", "RZ") ?: "RZ",
             mapThrottleAxis = prefs.getString("map_throttle", "Z") ?: "Z",
+            mapReverseAxis = prefs.getString("map_reverse", "SL0") ?: "SL0",
             buttons = loadedButtons
         )
     }
@@ -62,10 +64,12 @@ class AppPreferences(context: Context) {
             .putBoolean("invert_roll", config.invertRoll)
             .putBoolean("invert_yaw", config.invertYaw)
             .putBoolean("enable_yaw", config.enableYaw)
+            .putBoolean("rudder_auto_center", config.rudderAutoCenter)
             .putString("map_pitch", config.mapPitchAxis)
             .putString("map_roll", config.mapRollAxis)
             .putString("map_rudder", config.mapRudderAxis)
             .putString("map_throttle", config.mapThrottleAxis)
+            .putString("map_reverse", config.mapReverseAxis)
 
         for (btn in config.buttons) {
             val i = btn.slotIndex

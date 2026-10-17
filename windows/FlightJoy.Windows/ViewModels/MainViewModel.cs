@@ -187,9 +187,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         Axes.Clear();
         foreach (AxisMappingConfig axisConfig in _config.AxisMappings)
         {
-            if (axisConfig.Source == SourceAxis.Aux)
-                continue;
-
             Axes.Add(new AxisMonitorItem(axisConfig));
         }
     }
