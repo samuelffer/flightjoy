@@ -22,13 +22,13 @@
 Funciona em qualquer simulador no PC que reconheça joysticks via Windows / vJoy:
 
 <div align="center">
-  <img src="https://cdn.akamai.steamstatic.com/steam/apps/1250410/capsule_184x69.jpg" height="54" alt="Microsoft Flight Simulator" title="Microsoft Flight Simulator 2020 / 2024" />
-  &nbsp;
-  <img src="https://cdn.akamai.steamstatic.com/steam/apps/2014780/capsule_184x69.jpg" height="54" alt="X-Plane 12" title="X-Plane 11 / 12" />
-  &nbsp;
-  <img src="https://cdn.akamai.steamstatic.com/steam/apps/223750/capsule_184x69.jpg" height="54" alt="DCS World" title="DCS World" />
-  &nbsp;
-  <img src="https://cdn.akamai.steamstatic.com/steam/apps/307960/capsule_184x69.jpg" height="54" alt="IL-2 Sturmovik" title="IL-2 Sturmovik" />
+  <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/Microsoft_Flight_Simulator_2024_logo.webp" height="48" alt="Microsoft Flight Simulator 2024" title="Microsoft Flight Simulator" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://www.x-plane.com/wp-content/uploads/2026/03/Logo_XPlane_Main.svg" height="42" alt="X-Plane" title="X-Plane" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/DCS-World-logo.jpg" height="48" alt="DCS World" title="DCS World" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://upload.wikimedia.org/wikipedia/commons/d/d8/IL2-Sturmovik-BoS-logo.jpg" height="48" alt="IL-2 Sturmovik" title="IL-2 Sturmovik" />
 </div>
 
 ---
