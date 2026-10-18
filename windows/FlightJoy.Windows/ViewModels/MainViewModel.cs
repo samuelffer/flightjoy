@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using FlightJoy.Core.Config;
 using FlightJoy.Core.Control;
@@ -14,6 +15,9 @@ namespace FlightJoy.Windows.ViewModels;
 
 public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 {
+    private const double CrossCenter = 64.0;
+    private const double CrossHalfArm = 48.0;
+
     private readonly Dispatcher _dispatcher;
     private readonly FlightLogger _logger;
     private readonly VJoyFeederService _feeder;
@@ -21,12 +25,17 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly UdpControlServer _server;
     private readonly AppConfig _config;
 
-    private string _connectionBadgeText = "Aguardando conexão...";
+    private string _connectionBadgeText = "Aguardando celular...";
     private string _vjoyBadgeText = "Verificando vJoy...";
     private string _telemetryText = "0.0 Hz";
     private string _activeButtonsText = "Nenhum";
     private bool _isServerRunning;
     private bool _isLogsVisible;
+    private bool _isPhoneConnected;
+
+    private double _pitchNorm;
+    private double _rollNorm;
+    private double _rudderNorm;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -113,6 +122,35 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     public string ServerButtonText => IsServerRunning ? "Parar" : "Iniciar";
+
+    public bool IsPhoneConnected
+    {
+        get => _isPhoneConnected;
+        private set
+        {
+            if (_isPhoneConnected != value)
+            {
+                _isPhoneConnected = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(StatusDotBrush));
+            }
+        }
+    }
+
+    public Brush StatusDotBrush => _isPhoneConnected
+        ? new SolidColorBrush(Color.FromRgb(0x34, 0xD3, 0x99))
+        : new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+
+    // Coordenadas em tempo real para a Cruz (Pitch & Roll) de 128x128 (Centro = 64,64)
+    public double StickDotLeft => CrossCenter + (_rollNorm * CrossHalfArm) - 5.0;
+    public double StickDotTop => CrossCenter + (_pitchNorm * CrossHalfArm) - 5.0;
+    public double StickCenterX => CrossCenter + (_rollNorm * CrossHalfArm);
+    public double StickCenterY => CrossCenter + (_pitchNorm * CrossHalfArm);
+    public double RollAxisDotLeft => CrossCenter + (_rollNorm * CrossHalfArm) - 3.5;
+    public double PitchAxisDotTop => CrossCenter + (_pitchNorm * CrossHalfArm) - 3.5;
+
+    // Coordenada em tempo real para a linha horizontal do Rudder (Largura 128, Centro = 64)
+    public double RudderDotLeft => CrossCenter + (_rudderNorm * CrossHalfArm) - 4.5;
 
     public bool IsLogsVisible
     {
@@ -217,6 +255,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         _server.Stop();
         IsServerRunning = false;
+        IsPhoneConnected = false;
+        ResetVisualAxes();
     }
 
     public void ToggleServer()
@@ -232,16 +272,43 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         IsLogsVisible = !IsLogsVisible;
     }
 
+    private void ResetVisualAxes()
+    {
+        _pitchNorm = 0.0;
+        _rollNorm = 0.0;
+        _rudderNorm = 0.0;
+        NotifyCrossChanged();
+    }
+
+    private void NotifyCrossChanged()
+    {
+        OnPropertyChanged(nameof(StickDotLeft));
+        OnPropertyChanged(nameof(StickDotTop));
+        OnPropertyChanged(nameof(StickCenterX));
+        OnPropertyChanged(nameof(StickCenterY));
+        OnPropertyChanged(nameof(RollAxisDotLeft));
+        OnPropertyChanged(nameof(PitchAxisDotTop));
+        OnPropertyChanged(nameof(RudderDotLeft));
+    }
+
     private void OnConnectionStateChanged(ConnectionState state, ConnectedDeviceInfo? device)
     {
         _dispatcher.BeginInvoke(() =>
         {
+            IsPhoneConnected = state == ConnectionState.PairedAndConnected;
+            if (!IsPhoneConnected)
+            {
+                ResetVisualAxes();
+            }
+
             ConnectionBadgeText = state switch
             {
-                ConnectionState.Stopped => "Servidor Parado",
-                ConnectionState.Listening => "Aguardando Celular...",
-                ConnectionState.PairedAndConnected => $"Conectado — {device?.DeviceName}",
-                ConnectionState.DisconnectedTimeout => "Desconectado (Sinal Perdido)",
+                ConnectionState.Stopped => "Servidor parado",
+                ConnectionState.Listening => "Aguardando celular...",
+                ConnectionState.PairedAndConnected => string.IsNullOrWhiteSpace(device?.DeviceName)
+                    ? "Celular conectado"
+                    : $"Celular conectado — {device.DeviceName}",
+                ConnectionState.DisconnectedTimeout => "Celular desconectado",
                 _ => state.ToString()
             };
         });
@@ -258,6 +325,15 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                     axisItem.ProcessedNormalized = proc;
                 }
             }
+
+            if (state.ProcessedSourceAxes.TryGetValue(SourceAxis.Pitch, out double p))
+                _pitchNorm = Math.Clamp(p, -1.0, 1.0);
+            if (state.ProcessedSourceAxes.TryGetValue(SourceAxis.Roll, out double r))
+                _rollNorm = Math.Clamp(r, -1.0, 1.0);
+            if (state.ProcessedSourceAxes.TryGetValue(SourceAxis.Yaw, out double y))
+                _rudderNorm = Math.Clamp(y, -1.0, 1.0);
+
+            NotifyCrossChanged();
 
             var pressedList = state.TargetVJoyButtons
                 .Where(kv => kv.Value)

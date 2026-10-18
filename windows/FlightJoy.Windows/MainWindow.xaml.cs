@@ -233,6 +233,12 @@ public partial class MainWindow : Window
         _viewModel.AcquireVJoyDevice();
     }
 
+    private void OnCycleVJoyDeviceClick(object sender, RoutedEventArgs e)
+    {
+        uint next = (_viewModel.VJoyDeviceId % 4) + 1;
+        _viewModel.VJoyDeviceId = next;
+    }
+
     private void OnToggleServerClick(object sender, RoutedEventArgs e)
     {
         _viewModel.ToggleServer();

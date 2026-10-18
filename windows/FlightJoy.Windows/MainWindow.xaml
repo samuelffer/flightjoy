@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="FlightJoy"
         Icon="pack://application:,,,/app.ico"
-        Width="590"
+        Width="560"
         SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
@@ -19,24 +19,78 @@
                       CornerRadius="0" />
     </WindowChrome.WindowChrome>
 
+    <Window.Resources>
+        <!-- Template de Botão com Cantos Arredondados -->
+        <ControlTemplate x:Key="RoundedWhiteButtonTemplate" TargetType="Button">
+            <Border x:Name="border"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8"
+                    Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="border" Property="Background" Value="#FFFFFF" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="border" Property="Background" Value="#DCDCDC" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <ControlTemplate x:Key="RoundedDarkButtonTemplate" TargetType="Button">
+            <Border x:Name="border"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8"
+                    Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="border" Property="Background" Value="#242424" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="border" Property="Background" Value="#2E2E2E" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <ControlTemplate x:Key="TitleBarButtonTemplate" TargetType="Button">
+            <Border x:Name="border"
+                    Background="Transparent"
+                    CornerRadius="4">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="border" Property="Background" Value="#222222" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+    </Window.Resources>
+
     <Border Background="#0A0A0A"
-            BorderBrush="#2E2E2E"
+            BorderBrush="#242424"
             BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
-                <!-- Cabeçalho Personalizado no Tema Escuro (Apenas Minimizar e Fechar p/ 2º Plano) -->
-                <RowDefinition Height="36" />
-                <!-- Conteúdo Principal -->
+                <!-- Barra de Título Personalizada -->
+                <RowDefinition Height="42" />
+                <!-- Corpo Principal -->
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- BARRA DE TÍTULO PERSONALIZADA (PRETO, BRANCO E CINZA) -->
+            <!-- BARRA DE TÍTULO ESCURA PERSONALIZADA -->
             <Border Grid.Row="0"
-                    Background="#121212"
-                    BorderBrush="#262626"
+                    Background="#0E0E0E"
+                    BorderBrush="#1F1F1F"
                     BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="OnTitleBarMouseDown">
-                <Grid Margin="14,0,6,0">
+                <Grid Margin="16,0,10,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -44,304 +98,395 @@
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <Image Source="pack://application:,,,/icon.png"
-                               Width="20"
-                               Height="20"
+                               Width="22"
+                               Height="22"
                                RenderOptions.BitmapScalingMode="HighQuality"
-                               Margin="0,0,8,0"
+                               Margin="0,0,10,0"
                                VerticalAlignment="Center" />
                         <TextBlock Text="FlightJoy"
-                                   FontSize="12"
+                                   FontSize="13"
                                    FontWeight="SemiBold"
-                                   Foreground="#E0E0E0"
-                                   VerticalAlignment="Center" />
-                        <TextBlock Text="  •  Cliente PC"
-                                   FontSize="11"
-                                   Foreground="#757575"
+                                   Foreground="#F2F2F2"
                                    VerticalAlignment="Center" />
                     </StackPanel>
 
-                    <!-- Apenas Minimizar (—) e Fechar (✕ -> envia para Ícones Ocultos em 2º Plano) -->
+                    <!-- Apenas Minimizar e Fechar (envia para Ícones Ocultos em 2º plano) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Width="36"
-                                Height="26"
-                                Margin="0,0,2,0"
-                                Padding="0"
-                                Background="#1A1A1A"
-                                BorderBrush="#2E2E2E"
-                                BorderThickness="1"
-                                Content="—"
-                                FontSize="12"
-                                FontWeight="Bold"
-                                Foreground="#E0E0E0"
+                        <Button Width="34"
+                                Height="28"
+                                Margin="0,0,4,0"
+                                Template="{StaticResource TitleBarButtonTemplate}"
                                 Cursor="Hand"
                                 ToolTip="Minimizar para a barra de tarefas"
-                                Click="OnMinimizeTitleBarClick" />
+                                Click="OnMinimizeTitleBarClick">
+                            <Path Data="M 0,6 L 11,6"
+                                  Stroke="#BDBDBD"
+                                  StrokeThickness="1.5"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Center" />
+                        </Button>
 
-                        <Button Width="36"
-                                Height="26"
-                                Padding="0"
-                                Background="#1A1A1A"
-                                BorderBrush="#2E2E2E"
-                                BorderThickness="1"
-                                Content="✕"
-                                FontSize="12"
-                                FontWeight="Bold"
-                                Foreground="#FFFFFF"
+                        <Button Width="34"
+                                Height="28"
+                                Template="{StaticResource TitleBarButtonTemplate}"
                                 Cursor="Hand"
                                 ToolTip="Fechar para 2º plano (Ícones Ocultos)"
-                                Click="OnCloseToTrayTitleBarClick" />
+                                Click="OnCloseToTrayTitleBarClick">
+                            <Path Data="M 0,0 L 10,10 M 10,0 L 0,10"
+                                  Stroke="#E0E0E0"
+                                  StrokeThickness="1.5"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Center" />
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- CONTEÚDO PRINCIPAL COMPACTO -->
-            <StackPanel Grid.Row="1" Margin="16,14,16,14">
+            <!-- CORPO PRINCIPAL -->
+            <StackPanel Grid.Row="1" Margin="20,18,20,18">
 
-                <!-- 1. Cabeçalho de Rede e Servidor -->
-                <Border Background="#161616"
-                        BorderBrush="#2E2E2E"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="16,12"
-                        Margin="0,0,0,10">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                <!-- SEÇÃO SUPERIOR: ESQUERDA (CRUZ PITCH/ROLL + RUDDER) | DIVISOR | DIREITA (IP, PORTA, VJOY, PARAR) -->
+                <Grid Margin="0,0,0,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="25" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <!-- COLUNA ESQUERDA: Eixos em Cruz (Pitch & Roll) + Rudder Horizontal Deitado -->
+                    <StackPanel Grid.Column="0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+
+                        <TextBlock Text="PITCH / ROLL"
+                                   FontSize="10"
+                                   FontWeight="SemiBold"
+                                   Foreground="#8A8A8A"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,4" />
+
+                        <!-- Cruz dos Eixos Pitch (Vertical) e Roll (Horizontal) -->
+                        <Canvas Width="128" Height="128" HorizontalAlignment="Center">
+                            <!-- Braço Horizontal da Cruz (Roll) -->
+                            <Border Canvas.Left="10" Canvas.Top="55"
+                                    Width="108" Height="18"
+                                    Background="#121212"
+                                    BorderBrush="#282828"
+                                    BorderThickness="1"
+                                    CornerRadius="4" />
+
+                            <!-- Braço Vertical da Cruz (Pitch) -->
+                            <Border Canvas.Left="55" Canvas.Top="10"
+                                    Width="18" Height="108"
+                                    Background="#121212"
+                                    BorderBrush="#282828"
+                                    BorderThickness="1"
+                                    CornerRadius="4" />
+
+                            <!-- Linhas Centrais dos Eixos -->
+                            <Line X1="14" Y1="64" X2="114" Y2="64" Stroke="#333333" StrokeThickness="1.2" />
+                            <Line X1="64" Y1="14" X2="64" Y2="114" Stroke="#333333" StrokeThickness="1.2" />
+
+                            <!-- Marcações de 50% nos Braços -->
+                            <Line X1="40" Y1="59" X2="40" Y2="69" Stroke="#383838" StrokeThickness="1.2" />
+                            <Line X1="88" Y1="59" X2="88" Y2="69" Stroke="#383838" StrokeThickness="1.2" />
+                            <Line X1="59" Y1="40" X2="69" Y2="40" Stroke="#383838" StrokeThickness="1.2" />
+                            <Line X1="59" Y1="88" X2="69" Y2="88" Stroke="#383838" StrokeThickness="1.2" />
+
+                            <!-- Linhas Guias até os Eixos X e Y -->
+                            <Line X1="{Binding StickCenterX}" Y1="64"
+                                  X2="{Binding StickCenterX}" Y2="{Binding StickCenterY}"
+                                  Stroke="#505050" StrokeThickness="1" />
+                            <Line X1="64" Y1="{Binding StickCenterY}"
+                                  X2="{Binding StickCenterX}" Y2="{Binding StickCenterY}"
+                                  Stroke="#505050" StrokeThickness="1" />
+
+                            <!-- Cursores Projetados nos Eixos X e Y -->
+                            <Ellipse Width="7" Height="7"
+                                     Fill="#8E8E8E"
+                                     Canvas.Left="{Binding RollAxisDotLeft}"
+                                     Canvas.Top="60.5" />
+                            <Ellipse Width="7" Height="7"
+                                     Fill="#8E8E8E"
+                                     Canvas.Left="60.5"
+                                     Canvas.Top="{Binding PitchAxisDotTop}" />
+
+                            <!-- Ponto Principal de Posição (Pitch & Roll) -->
+                            <Ellipse Width="10" Height="10"
+                                     Fill="#FFFFFF"
+                                     Canvas.Left="{Binding StickDotLeft}"
+                                     Canvas.Top="{Binding StickDotTop}" />
+                        </Canvas>
+
+                        <!-- Eixo Rudder na Horizontal Deitado -->
+                        <TextBlock Text="RUDDER"
+                                   FontSize="10"
+                                   FontWeight="SemiBold"
+                                   Foreground="#8A8A8A"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,8,0,4" />
+
+                        <Canvas Width="128" Height="20" HorizontalAlignment="Center">
+                            <Border Canvas.Left="10" Canvas.Top="4"
+                                    Width="108" Height="12"
+                                    Background="#121212"
+                                    BorderBrush="#282828"
+                                    BorderThickness="1"
+                                    CornerRadius="4" />
+
+                            <!-- Linha Horizontal e Centro do Rudder -->
+                            <Line X1="14" Y1="10" X2="114" Y2="10" Stroke="#333333" StrokeThickness="1.2" />
+                            <Line X1="64" Y1="4" X2="64" Y2="16" Stroke="#484848" StrokeThickness="1.5" />
+
+                            <!-- Ponto do Rudder -->
+                            <Ellipse Width="9" Height="9"
+                                     Fill="#FFFFFF"
+                                     Canvas.Left="{Binding RudderDotLeft}"
+                                     Canvas.Top="5.5" />
+                        </Canvas>
+                    </StackPanel>
+
+                    <!-- LINHA DIVISÓRIA VERTICAL -->
+                    <Border Grid.Column="1"
+                            Width="1"
+                            Background="#222222"
+                            HorizontalAlignment="Center"
+                            Margin="0,6" />
+
+                    <!-- COLUNA DIREITA: IP, Porta, vJoy e Botão Parar/Iniciar -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+
+                        <!-- Linha 1: IP -->
+                        <Border Background="#131313"
+                                BorderBrush="#1F1F1F"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,5"
+                                Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="95" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- Ícone Vetorial Monitor -->
+                                    <Path Data="M 1,2 L 15,2 L 15,11 L 1,11 Z M 5,14 L 11,14 M 8,11 L 8,14"
+                                          Stroke="#BDBDBD"
+                                          StrokeThickness="1.4"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,10,0" />
+                                    <TextBlock Text="IP"
+                                               FontSize="12"
+                                               Foreground="#BDBDBD"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Border Grid.Column="1"
+                                        Background="#0C0C0C"
+                                        BorderBrush="#262626"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12,7">
+                                    <TextBlock Text="{Binding LocalIpSummary}"
+                                               FontSize="13"
+                                               Foreground="#EAEAEA"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Linha 2: Porta -->
+                        <Border Background="#131313"
+                                BorderBrush="#1F1F1F"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,5"
+                                Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="95" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- Ícone Vetorial Porta / Rede -->
+                                    <Path Data="M 2,4 C 2,2 14,2 14,4 C 14,6 2,6 2,4 Z M 2,4 L 2,12 C 2,14 14,14 14,12 L 14,4 M 2,8 C 2,10 14,10 14,8"
+                                          Stroke="#BDBDBD"
+                                          StrokeThickness="1.4"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,10,0" />
+                                    <TextBlock Text="Porta"
+                                               FontSize="12"
+                                               Foreground="#BDBDBD"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Border Grid.Column="1"
+                                        Background="#0C0C0C"
+                                        BorderBrush="#262626"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10,5">
+                                    <TextBox Text="{Binding UdpPort, UpdateSourceTrigger=PropertyChanged}"
+                                             Background="Transparent"
+                                             Foreground="#EAEAEA"
+                                             CaretBrush="#FFFFFF"
+                                             BorderThickness="0"
+                                             FontSize="13"
+                                             VerticalAlignment="Center" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Linha 3: vJoy -->
+                        <Border Background="#131313"
+                                BorderBrush="#1F1F1F"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,5"
+                                Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="95" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- Ícone Vetorial Gamepad -->
+                                    <Path Data="M 3,4 L 13,4 C 15,4 16,6 15,10 C 14.5,12 13,12 12,10 L 10,8 L 6,8 L 4,10 C 3,12 1.5,12 1,10 C 0,6 1,4 3,4 Z M 5,6 L 5,6.5 M 11,6 L 11,6.5"
+                                          Stroke="#BDBDBD"
+                                          StrokeThickness="1.4"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,10,0" />
+                                    <TextBlock Text="vJoy"
+                                               FontSize="12"
+                                               Foreground="#BDBDBD"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Button Grid.Column="1"
+                                        Background="#0C0C0C"
+                                        BorderBrush="#262626"
+                                        BorderThickness="1"
+                                        Padding="12,7"
+                                        Template="{StaticResource RoundedDarkButtonTemplate}"
+                                        HorizontalContentAlignment="Stretch"
+                                        Cursor="Hand"
+                                        ToolTip="Clique para alternar o dispositivo vJoy (1 a 4)"
+                                        Click="OnCycleVJoyDeviceClick">
+                                    <Grid Width="210">
+                                        <TextBlock Text="{Binding VJoyDeviceId}"
+                                                   FontSize="13"
+                                                   Foreground="#EAEAEA"
+                                                   HorizontalAlignment="Left"
+                                                   VerticalAlignment="Center" />
+                                        <Path Data="M 0,0 L 4.5,4.5 L 9,0"
+                                              Stroke="#BDBDBD"
+                                              StrokeThickness="1.5"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,4,0" />
+                                    </Grid>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Botão Principal: Parar / Iniciar -->
+                        <Button Height="42"
+                                Background="#F2F2F2"
+                                Foreground="#0A0A0A"
+                                BorderThickness="0"
+                                Template="{StaticResource RoundedWhiteButtonTemplate}"
+                                Cursor="Hand"
+                                Click="OnToggleServerClick">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="FLIGHTJOY"
-                                           FontSize="17"
-                                           FontWeight="Bold"
-                                           Foreground="#FFFFFF"
-                                           Margin="0,0,10,0" />
-                                <TextBlock Text="{Binding MachineName, Mode=OneWay}"
-                                           FontSize="12"
-                                           Foreground="#9E9E9E"
+                                <Border Width="11"
+                                        Height="11"
+                                        CornerRadius="2"
+                                        Background="#141414"
+                                        Margin="0,0,10,0"
+                                        VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ServerButtonText}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Foreground="#0A0A0A"
                                            VerticalAlignment="Center" />
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock Text="IP: "
-                                           FontSize="12"
-                                           Foreground="#9E9E9E" />
-                                <TextBlock Text="{Binding LocalIpSummary}"
-                                           FontSize="12"
-                                           FontWeight="SemiBold"
-                                           Foreground="#E0E0E0" />
-                            </StackPanel>
-                        </StackPanel>
+                        </Button>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Porta:"
-                                       VerticalAlignment="Center"
-                                       Foreground="#9E9E9E"
-                                       FontSize="12"
-                                       Margin="0,0,6,0" />
-                            <TextBox Width="64"
-                                     Padding="6,4"
-                                     Background="#0A0A0A"
-                                     Foreground="#FFFFFF"
-                                     BorderBrush="#2E2E2E"
-                                     Text="{Binding UdpPort, UpdateSourceTrigger=PropertyChanged}"
-                                     VerticalAlignment="Center"
-                                     Margin="0,0,12,0" />
+                    </StackPanel>
+                </Grid>
 
-                            <TextBlock Text="vJoy:"
-                                       VerticalAlignment="Center"
-                                       Foreground="#9E9E9E"
-                                       FontSize="12"
-                                       Margin="0,0,6,0" />
-                            <ComboBox Width="52"
-                                      Padding="6,4"
-                                      SelectedValue="{Binding VJoyDeviceId}"
-                                      SelectedValuePath="Content"
-                                      VerticalAlignment="Center"
-                                      Margin="0,0,12,0">
-                                <ComboBoxItem Content="1" />
-                                <ComboBoxItem Content="2" />
-                                <ComboBoxItem Content="3" />
-                                <ComboBoxItem Content="4" />
-                            </ComboBox>
-
-                            <Button Content="{Binding ServerButtonText}"
-                                    Padding="14,5"
-                                    Background="#FFFFFF"
-                                    Foreground="#0A0A0A"
-                                    BorderThickness="0"
-                                    FontWeight="Bold"
-                                    Cursor="Hand"
-                                    Click="OnToggleServerClick" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- 2. Status de Conexão e vJoy (com espaçamento protegido para não encavalar) -->
-                <Border Background="#161616"
-                        BorderBrush="#2E2E2E"
+                <!-- CARTÃO INFERIOR DE STATUS (CELULAR + VJOY + BOTÃO RECONECTAR) -->
+                <Border Background="#121212"
+                        BorderBrush="#222222"
                         BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="14,10"
-                        Margin="0,0,0,10">
+                        CornerRadius="10"
+                        Padding="16,12">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0"
-                                    Orientation="Horizontal"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,12,0">
-                            <TextBlock Text="Celular: "
-                                       Foreground="#9E9E9E"
-                                       FontSize="12" />
+                        <!-- Ícone Vetorial Celular -->
+                        <Path Grid.Column="0"
+                              Data="M 2,1 L 12,1 C 13,1 13,2 13,2 L 13,18 C 13,19 12,19 12,19 L 2,19 C 1,19 1,18 1,18 L 1,2 C 1,1 2,1 2,1 Z M 6,16 L 8,16"
+                              Stroke="#D6D6D6"
+                              StrokeThickness="1.5"
+                              VerticalAlignment="Center"
+                              Margin="0,0,12,0" />
+
+                        <!-- Bolinha de Status (Verde quando conectado, Cinza quando aguardando) -->
+                        <Ellipse Grid.Column="1"
+                                 Width="8"
+                                 Height="8"
+                                 Fill="{Binding StatusDotBrush}"
+                                 VerticalAlignment="Top"
+                                 Margin="0,6,10,0" />
+
+                        <!-- Textos Empilhados: Status do Celular + Status do vJoy -->
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,12,0">
                             <TextBlock Text="{Binding ConnectionBadgeText}"
-                                       Foreground="#FFFFFF"
+                                       FontSize="13"
                                        FontWeight="SemiBold"
-                                       FontSize="12"
-                                       MaxWidth="195"
+                                       Foreground="#F2F2F2"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding VJoyBadgeText}"
+                                       FontSize="11"
+                                       Foreground="#8A8A8A"
+                                       Margin="0,3,0,0"
                                        TextTrimming="CharacterEllipsis" />
                         </StackPanel>
 
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding VJoyBadgeText}"
-                                   Foreground="#9E9E9E"
-                                   VerticalAlignment="Center"
-                                   FontSize="11"
-                                   Margin="0,0,10,0" />
-
-                        <Button Grid.Column="2"
-                                Content="Reconectar"
-                                Padding="10,4"
-                                Background="#262626"
-                                Foreground="#E0E0E0"
-                                BorderBrush="#383838"
-                                FontSize="11"
+                        <!-- Botão Reconectar com Ícone Vetorial de Refresh -->
+                        <Button Grid.Column="3"
+                                Background="#1A1A1A"
+                                BorderBrush="#2E2E2E"
+                                BorderThickness="1"
+                                Padding="14,8"
+                                Template="{StaticResource RoundedDarkButtonTemplate}"
                                 Cursor="Hand"
-                                Click="OnReconnectVJoyClick" />
+                                VerticalAlignment="Center"
+                                Click="OnReconnectVJoyClick">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="M 12,4 A 5.5,5.5 0 1 0 13,9 M 12,1 L 12,4.5 L 8.5,4.5"
+                                      Stroke="#E0E0E0"
+                                      StrokeThickness="1.4"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,8,0" />
+                                <TextBlock Text="Reconectar"
+                                           FontSize="12"
+                                           Foreground="#E0E0E0"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
                 </Border>
-
-                <!-- 3. Monitoramento dos Eixos (incluindo Reverso) e Botões -->
-                <Border Background="#161616"
-                        BorderBrush="#2E2E2E"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="16,12"
-                        Margin="0,0,0,10">
-                    <StackPanel>
-                        <ItemsControl ItemsSource="{Binding Axes}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,5">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="135" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="64" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBlock Grid.Column="0"
-                                                   Text="{Binding DisplayName}"
-                                                   Foreground="#E0E0E0"
-                                                   FontSize="12"
-                                                   VerticalAlignment="Center" />
-
-                                        <ProgressBar Grid.Column="1"
-                                                     Minimum="0"
-                                                     Maximum="100"
-                                                     Value="{Binding ProcessedPercentBarValue, Mode=OneWay}"
-                                                     Height="10"
-                                                     Background="#0A0A0A"
-                                                     Foreground="#FFFFFF"
-                                                     BorderBrush="#2E2E2E"
-                                                     BorderThickness="1"
-                                                     VerticalAlignment="Center" />
-
-                                        <TextBlock Grid.Column="2"
-                                                   Text="{Binding ProcessedPercentText}"
-                                                   Foreground="#FFFFFF"
-                                                   FontFamily="Consolas"
-                                                   FontSize="12"
-                                                   HorizontalAlignment="Right"
-                                                   VerticalAlignment="Center" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <Border Background="#0E0E0E"
-                                BorderBrush="#262626"
-                                BorderThickness="1"
-                                CornerRadius="6"
-                                Padding="10,7"
-                                Margin="0,10,0,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Botões vJoy Acionados: "
-                                           Foreground="#9E9E9E"
-                                           FontSize="12" />
-                                <TextBlock Text="{Binding ActiveButtonsText}"
-                                           Foreground="#FFFFFF"
-                                           FontWeight="SemiBold"
-                                           FontSize="12" />
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </Border>
-
-                <!-- 4. Logs Retráteis -->
-                <Border Visibility="{Binding LogsVisibility}"
-                        Background="#161616"
-                        BorderBrush="#2E2E2E"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Height="95"
-                        Padding="8"
-                        Margin="0,0,0,10">
-                    <ListBox ItemsSource="{Binding Logs}"
-                             Background="#0A0A0A"
-                             Foreground="#BDBDBD"
-                             BorderThickness="0"
-                             FontFamily="Consolas"
-                             FontSize="10" />
-                </Border>
-
-                <!-- 5. Rodapé -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Column="0"
-                               Text="{Binding TelemetryText}"
-                               Foreground="#9E9E9E"
-                               FontFamily="Consolas"
-                               FontSize="11"
-                               VerticalAlignment="Center" />
-
-                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Button Content="Logs"
-                                Padding="12,4"
-                                Background="#1E1E1E"
-                                Foreground="#BDBDBD"
-                                BorderBrush="#2E2E2E"
-                                FontSize="11"
-                                Margin="0,0,8,0"
-                                Cursor="Hand"
-                                Click="OnToggleLogsClick" />
-                        <Button Content="Encerrar"
-                                Padding="12,4"
-                                Background="#1E1E1E"
-                                Foreground="#FFFFFF"
-                                BorderBrush="#2E2E2E"
-                                FontSize="11"
-                                Cursor="Hand"
-                                Click="OnForceExitClick" />
-                    </StackPanel>
-                </Grid>
 
             </StackPanel>
         </Grid>
