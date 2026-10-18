@@ -17,7 +17,7 @@
 
 ---
 
-## ✈️ Compatible Simulators
+## Compatible Simulators
 
 Works with any PC flight simulator that supports Windows / vJoy joystick input:
 
@@ -33,22 +33,22 @@ Works with any PC flight simulator that supports Windows / vJoy joystick input:
 
 ---
 
-## 📦 Download
+## Download
 
 Download the unified package (containing **`Android/FlightJoy.apk`** and **`Windows/FlightJoy.exe`**) directly from [`Zips/FlightJoy.zip`](./Zips/FlightJoy.zip).
 
 ---
 
-## ⚙️ PC Requirements
+## PC Requirements
 
 | Requirement | Description | Link |
 | :--- | :--- | :--- |
 | <img src="https://cdn.simpleicons.org/dotnet/512BD4" width="20" align="center" /> **.NET 8 Desktop Runtime** | Required to run `FlightJoy.exe` (**x64** version). | [Download from Microsoft](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) |
-| 🎮 **vJoy 2.1.9.1** | Virtual joystick driver for Windows (with **Device 1** enabled). | [Download vJoy 2.1.9.1](https://sourceforge.net/projects/vjoystick/) |
+| **vJoy 2.1.9.1** | Virtual joystick driver for Windows (with **Device 1** enabled). | [Download vJoy 2.1.9.1](https://sourceforge.net/projects/vjoystick/) |
 
 ---
 
-## 🕹️ How to Use
+## How to Use
 
 1. Launch **`FlightJoy.exe`** on your PC.
 2. Open the **FlightJoy** app on your Android phone (connected to the same Wi-Fi network).
