@@ -22,7 +22,11 @@ on:
 
 permissions:
   contents: write
-  actions: read
+  actions: write
+
+concurrency:
+  group: flightjoy-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   detect-changes:
@@ -146,6 +150,7 @@ jobs:
         with:
           name: temp-android-apk
           path: dist-android/
+          retention-days: 1
           if-no-files-found: error
 
   build-windows:
@@ -191,6 +196,7 @@ jobs:
         with:
           name: temp-windows-exe
           path: dist-windows/
+          retention-days: 1
           if-no-files-found: error
 
   package-bundle:
@@ -251,4 +257,5 @@ jobs:
         with:
           name: FlightJoy
           path: package_root/
+          retention-days: 3
           if-no-files-found: error
