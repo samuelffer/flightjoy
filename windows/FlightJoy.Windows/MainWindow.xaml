@@ -165,51 +165,30 @@
                                    HorizontalAlignment="Center"
                                    Margin="0,0,0,4" />
 
-                        <!-- Cruz dos Eixos Pitch (Vertical) e Roll (Horizontal) -->
+                        <!-- Cruz Simples dos Eixos Pitch (Vertical) e Roll (Horizontal) -->
                         <Canvas Width="128" Height="128" HorizontalAlignment="Center">
-                            <!-- Braço Horizontal da Cruz (Roll) -->
-                            <Border Canvas.Left="10" Canvas.Top="55"
-                                    Width="108" Height="18"
-                                    Background="#121212"
-                                    BorderBrush="#282828"
-                                    BorderThickness="1"
-                                    CornerRadius="4" />
+                            <!-- Linhas Principais dos Eixos X e Y -->
+                            <Line X1="16" Y1="64" X2="112" Y2="64" Stroke="#3A3A3A" StrokeThickness="1.5" />
+                            <Line X1="64" Y1="16" X2="64" Y2="112" Stroke="#3A3A3A" StrokeThickness="1.5" />
 
-                            <!-- Braço Vertical da Cruz (Pitch) -->
-                            <Border Canvas.Left="55" Canvas.Top="10"
-                                    Width="18" Height="108"
-                                    Background="#121212"
-                                    BorderBrush="#282828"
-                                    BorderThickness="1"
-                                    CornerRadius="4" />
+                            <!-- Marcações nas Extremidades (100%) e Meio (50%) -->
+                            <Line X1="16" Y1="60" X2="16" Y2="68" Stroke="#3A3A3A" StrokeThickness="1.5" />
+                            <Line X1="112" Y1="60" X2="112" Y2="68" Stroke="#3A3A3A" StrokeThickness="1.5" />
+                            <Line X1="60" Y1="16" X2="68" Y2="16" Stroke="#3A3A3A" StrokeThickness="1.5" />
+                            <Line X1="60" Y1="112" X2="68" Y2="112" Stroke="#3A3A3A" StrokeThickness="1.5" />
 
-                            <!-- Linhas Centrais dos Eixos -->
-                            <Line X1="14" Y1="64" X2="114" Y2="64" Stroke="#333333" StrokeThickness="1.2" />
-                            <Line X1="64" Y1="14" X2="64" Y2="114" Stroke="#333333" StrokeThickness="1.2" />
-
-                            <!-- Marcações de 50% nos Braços -->
-                            <Line X1="40" Y1="59" X2="40" Y2="69" Stroke="#383838" StrokeThickness="1.2" />
-                            <Line X1="88" Y1="59" X2="88" Y2="69" Stroke="#383838" StrokeThickness="1.2" />
-                            <Line X1="59" Y1="40" X2="69" Y2="40" Stroke="#383838" StrokeThickness="1.2" />
-                            <Line X1="59" Y1="88" X2="69" Y2="88" Stroke="#383838" StrokeThickness="1.2" />
+                            <Line X1="40" Y1="61" X2="40" Y2="67" Stroke="#303030" StrokeThickness="1.2" />
+                            <Line X1="88" Y1="61" X2="88" Y2="67" Stroke="#303030" StrokeThickness="1.2" />
+                            <Line X1="61" Y1="40" X2="67" Y2="40" Stroke="#303030" StrokeThickness="1.2" />
+                            <Line X1="61" Y1="88" X2="67" Y2="88" Stroke="#303030" StrokeThickness="1.2" />
 
                             <!-- Linhas Guias até os Eixos X e Y -->
                             <Line X1="{Binding StickCenterX}" Y1="64"
                                   X2="{Binding StickCenterX}" Y2="{Binding StickCenterY}"
-                                  Stroke="#505050" StrokeThickness="1" />
+                                  Stroke="#484848" StrokeThickness="1" />
                             <Line X1="64" Y1="{Binding StickCenterY}"
                                   X2="{Binding StickCenterX}" Y2="{Binding StickCenterY}"
-                                  Stroke="#505050" StrokeThickness="1" />
-
-                            <!-- Cursores Projetados nos Eixos X e Y -->
-                            <Ellipse Width="7" Height="7"
-                                     Fill="#8E8E8E"
-                                     Canvas.Left="{Binding RollAxisDotLeft}"
-                                     Canvas.Top="60.5" />
-                            <Ellipse Width="7" Height="7"
-                                     Fill="#8E8E8E"
-                                     Canvas.Left="60.5"
-                                     Canvas.Top="{Binding PitchAxisDotTop}" />
+                                  Stroke="#484848" StrokeThickness="1" />
 
                             <!-- Ponto Principal de Posição (Pitch & Roll) -->
                             <Ellipse Width="10" Height="10"
@@ -218,7 +197,7 @@
                                      Canvas.Top="{Binding StickDotTop}" />
                         </Canvas>
 
-                        <!-- Eixo Rudder na Horizontal Deitado -->
+                        <!-- Eixo Rudder Simples na Horizontal Deitado -->
                         <TextBlock Text="RUDDER"
                                    FontSize="10"
                                    FontWeight="SemiBold"
@@ -227,16 +206,11 @@
                                    Margin="0,8,0,4" />
 
                         <Canvas Width="128" Height="20" HorizontalAlignment="Center">
-                            <Border Canvas.Left="10" Canvas.Top="4"
-                                    Width="108" Height="12"
-                                    Background="#121212"
-                                    BorderBrush="#282828"
-                                    BorderThickness="1"
-                                    CornerRadius="4" />
-
-                            <!-- Linha Horizontal e Centro do Rudder -->
-                            <Line X1="14" Y1="10" X2="114" Y2="10" Stroke="#333333" StrokeThickness="1.2" />
-                            <Line X1="64" Y1="4" X2="64" Y2="16" Stroke="#484848" StrokeThickness="1.5" />
+                            <!-- Linha Horizontal Simples, Extremidades e Centro do Rudder -->
+                            <Line X1="16" Y1="10" X2="112" Y2="10" Stroke="#3A3A3A" StrokeThickness="1.5" />
+                            <Line X1="16" Y1="6" X2="16" Y2="14" Stroke="#3A3A3A" StrokeThickness="1.5" />
+                            <Line X1="112" Y1="6" X2="112" Y2="14" Stroke="#3A3A3A" StrokeThickness="1.5" />
+                            <Line X1="64" Y1="5" X2="64" Y2="15" Stroke="#484848" StrokeThickness="1.5" />
 
                             <!-- Ponto do Rudder -->
                             <Ellipse Width="9" Height="9"
