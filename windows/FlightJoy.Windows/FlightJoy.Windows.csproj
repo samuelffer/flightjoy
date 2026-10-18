@@ -11,7 +11,13 @@
     <RootNamespace>FlightJoy.Windows</RootNamespace>
     <Version>0.1.0</Version>
     <Title>FlightJoy — Cliente Windows vJoy</Title>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="app.ico" />
+    <Resource Include="icon.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FlightJoy.Core\FlightJoy.Core.csproj" />
