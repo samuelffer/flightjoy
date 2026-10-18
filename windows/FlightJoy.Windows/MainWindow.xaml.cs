@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
 using FlightJoy.Windows.ViewModels;
 
 namespace FlightJoy.Windows;
@@ -15,7 +16,6 @@ public partial class MainWindow : Window
     private const int WmRButtonUp = 0x0205;
 
     private const uint NimAdd = 0x00000000;
-    private const uint NimModify = 0x00000001;
     private const uint NimDelete = 0x00000002;
     private const uint NifMessage = 0x00000001;
     private const uint NifIcon = 0x00000002;
@@ -28,6 +28,7 @@ public partial class MainWindow : Window
 
     private readonly MainViewModel _viewModel;
     private bool _allowFullExit;
+    private bool _isAnimatingOut;
     private bool _trayIconAdded;
     private IntPtr _hwnd;
     private IntPtr _hIcon;
@@ -38,19 +39,70 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = new MainViewModel(Dispatcher);
         DataContext = _viewModel;
+
+        RootBorder.Opacity = 0.0;
+        RootScale.ScaleX = 0.94;
+        RootScale.ScaleY = 0.94;
+        RootTranslate.Y = 10.0;
+
         SourceInitialized += OnWindowSourceInitialized;
         ContentRendered += OnWindowContentRendered;
+        StateChanged += OnWindowStateChanged;
         Closing += OnWindowClosing;
         Closed += OnWindowClosed;
     }
 
     private void OnWindowContentRendered(object? sender, EventArgs e)
     {
+        PlayWindowOpenAnimation();
+
         if (App.IsSelfTestMode)
         {
             _allowFullExit = true;
             Dispatcher.BeginInvoke(new Action(Close), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
+    }
+
+    private void OnWindowStateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Normal)
+        {
+            PlayWindowOpenAnimation();
+        }
+    }
+
+    private void PlayWindowOpenAnimation()
+    {
+        _isAnimatingOut = false;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = new Duration(TimeSpan.FromMilliseconds(220));
+
+        RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(0.0, 1.0, duration) { EasingFunction = ease });
+        RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, new DoubleAnimation(0.94, 1.0, duration) { EasingFunction = ease });
+        RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, new DoubleAnimation(0.94, 1.0, duration) { EasingFunction = ease });
+        RootTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, new DoubleAnimation(10.0, 0.0, duration) { EasingFunction = ease });
+    }
+
+    private void PlayWindowExitAnimation(Action onCompleted)
+    {
+        if (_isAnimatingOut)
+            return;
+
+        _isAnimatingOut = true;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+        var duration = new Duration(TimeSpan.FromMilliseconds(160));
+
+        var fadeAnim = new DoubleAnimation(1.0, 0.0, duration) { EasingFunction = ease };
+        fadeAnim.Completed += (_, _) =>
+        {
+            _isAnimatingOut = false;
+            onCompleted();
+        };
+
+        RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, new DoubleAnimation(1.0, 0.95, duration) { EasingFunction = ease });
+        RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, new DoubleAnimation(1.0, 0.95, duration) { EasingFunction = ease });
+        RootTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, new DoubleAnimation(0.0, 8.0, duration) { EasingFunction = ease });
+        RootBorder.BeginAnimation(OpacityProperty, fadeAnim);
     }
 
     private void OnWindowSourceInitialized(object? sender, EventArgs e)
@@ -88,14 +140,13 @@ public partial class MainWindow : Window
                 uFlags = NifMessage | NifIcon | NifTip,
                 uCallbackMessage = WmTrayIcon,
                 hIcon = _hIcon,
-                szTip = "FlightJoy — Segundo Plano (Clique para abrir)"
+                szTip = "FlightJoy — Running in background (Click to open)"
             };
 
             _trayIconAdded = Shell_NotifyIconW(NimAdd, ref _nid);
         }
         catch
         {
-            // Ignora falha silenciosamente em ambientes sem bandeja
         }
     }
 
@@ -117,8 +168,11 @@ public partial class MainWindow : Window
     private void HideToSystemTray()
     {
         EnsureTrayIconRegistered();
-        ShowInTaskbar = false;
-        Hide();
+        PlayWindowExitAnimation(() =>
+        {
+            ShowInTaskbar = false;
+            Hide();
+        });
     }
 
     private void RestoreFromSystemTray()
@@ -130,6 +184,7 @@ public partial class MainWindow : Window
         Topmost = true;
         Topmost = false;
         Focus();
+        PlayWindowOpenAnimation();
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -159,9 +214,9 @@ public partial class MainWindow : Window
 
         try
         {
-            AppendMenuW(hMenu, MfString, new UIntPtr(1), "Abrir FlightJoy");
+            AppendMenuW(hMenu, MfString, new UIntPtr(1), "Open FlightJoy");
             AppendMenuW(hMenu, MfSeparator, UIntPtr.Zero, null);
-            AppendMenuW(hMenu, MfString, new UIntPtr(2), "Encerrar FlightJoy");
+            AppendMenuW(hMenu, MfString, new UIntPtr(2), "Exit FlightJoy");
 
             GetCursorPos(out PointWin32 pt);
             SetForegroundWindow(_hwnd);
@@ -194,7 +249,6 @@ public partial class MainWindow : Window
     {
         if (e.ChangedButton == MouseButton.Left && e.ButtonState == MouseButtonState.Pressed)
         {
-            // Impede maximizar com duplo clique no cabeçalho; apenas move a janela
             if (e.ClickCount == 1)
             {
                 DragMove();
@@ -204,7 +258,10 @@ public partial class MainWindow : Window
 
     private void OnMinimizeTitleBarClick(object sender, RoutedEventArgs e)
     {
-        WindowState = WindowState.Minimized;
+        PlayWindowExitAnimation(() =>
+        {
+            WindowState = WindowState.Minimized;
+        });
     }
 
     private void OnCloseToTrayTitleBarClick(object sender, RoutedEventArgs e)
@@ -214,7 +271,6 @@ public partial class MainWindow : Window
 
     private void OnWindowClosing(object? sender, CancelEventArgs e)
     {
-        // Ao fechar no X, vai direto para segundo plano nos Ícones Ocultos (System Tray)
         if (!_allowFullExit)
         {
             e.Cancel = true;

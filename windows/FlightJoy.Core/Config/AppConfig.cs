@@ -65,18 +65,28 @@ public sealed class AppConfig
             Deadzone = 0.02,
             Exponential = 0.00,
             Smoothing = 0.05
+        },
+        new AxisMappingConfig
+        {
+            Source = SourceAxis.Brake,
+            TargetAxis = VJoyAxisUsage.SL1,
+            Invert = false,
+            Sensitivity = 1.0,
+            Deadzone = 0.00,
+            Exponential = 0.00,
+            Smoothing = 0.05
         }
     ];
 
     public static List<ButtonMappingConfig> CreateDefaultButtonMappings() =>
     [
-        new ButtonMappingConfig { PhoneButtonNumber = 1, TargetVJoyButton = 1, Label = "Gatilho / AP Disconnect" },
-        new ButtonMappingConfig { PhoneButtonNumber = 2, TargetVJoyButton = 2, Label = "Trem de Pouso (Gear)" },
+        new ButtonMappingConfig { PhoneButtonNumber = 1, TargetVJoyButton = 1, Label = "Brakes" },
+        new ButtonMappingConfig { PhoneButtonNumber = 2, TargetVJoyButton = 2, Label = "Parking Brake" },
         new ButtonMappingConfig { PhoneButtonNumber = 3, TargetVJoyButton = 3, Label = "Flaps Up (-)" },
         new ButtonMappingConfig { PhoneButtonNumber = 4, TargetVJoyButton = 4, Label = "Flaps Down (+)" },
-        new ButtonMappingConfig { PhoneButtonNumber = 5, TargetVJoyButton = 5, Label = "Freio de Estac. (Brakes)" },
-        new ButtonMappingConfig { PhoneButtonNumber = 6, TargetVJoyButton = 6, Label = "Alternar Câmera (View)" },
-        new ButtonMappingConfig { PhoneButtonNumber = 7, TargetVJoyButton = 7, Label = "Piloto Automático (AP)" },
-        new ButtonMappingConfig { PhoneButtonNumber = 8, TargetVJoyButton = 8, Label = "Spoiler / Airbrake" }
+        new ButtonMappingConfig { PhoneButtonNumber = 5, TargetVJoyButton = 5, Label = "Landing Gear" },
+        new ButtonMappingConfig { PhoneButtonNumber = 6, TargetVJoyButton = 6, Label = "Spoiler / Airbrake" },
+        new ButtonMappingConfig { PhoneButtonNumber = 7, TargetVJoyButton = 7, Label = "Autopilot (AP)" },
+        new ButtonMappingConfig { PhoneButtonNumber = 8, TargetVJoyButton = 8, Label = "Camera / View" }
     ];
 }

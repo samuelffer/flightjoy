@@ -12,9 +12,9 @@ import kotlin.math.hypot
 import kotlin.math.min
 
 /**
- * Indicador do giroscópio em formato de CRUZ SIMPLES (Eixo X e Eixo Y) em tema monocromático.
- * - Quando o avião sobe (cabrar, pitch > 0), a bolinha vai para BAIXO no eixo Y.
- * - Tocar no centro da cruz trava/destrava o giroscópio no centro (0%, 0%).
+ * Simple Cross (+) Gyroscope Indicator (X and Y Axes) in monochrome theme.
+ * - When pitching up (climb, pitch > 0), the white dot moves DOWN on the Y axis.
+ * - Tapping the center of the cross locks/unlocks the gyroscope at (0%, 0%).
  */
 class VirtualStickView @JvmOverloads constructor(
     context: Context,
@@ -105,11 +105,11 @@ class VirtualStickView @JvmOverloads constructor(
         val cy = h * 0.47f
         val halfArm = min(w, h) * 0.37f
 
-        // Linhas simples dos eixos X (Roll) e Y (Pitch) em cruz (+)
+        // Simple X (Roll) and Y (Pitch) cross lines (+)
         canvas.drawLine(cx - halfArm, cy, cx + halfArm, cy, axisLinePaint)
         canvas.drawLine(cx, cy - halfArm, cx, cy + halfArm, axisLinePaint)
 
-        // Marcações nas extremidades (100%) e em 50% dos braços X e Y
+        // End ticks (100%) and mid ticks (50%)
         val endTickHalf = 5.5f * density
         val midTickHalf = 4.0f * density
         for (sign in intArrayOf(-1, 1)) {
@@ -124,30 +124,26 @@ class VirtualStickView @JvmOverloads constructor(
             canvas.drawLine(cx - midTickHalf, midY, cx + midTickHalf, midY, tickLinePaint)
         }
 
-        // Rótulos discretos X e Y nas extremidades da cruz
+        // Subtle X and Y labels at the cross ends
         canvas.drawText("Y", cx, cy - halfArm - 6f * density, axisLabelPaint)
         canvas.drawText("X", cx + halfArm + 10f * density, cy + 3.5f * density, axisLabelPaint)
 
         if (isLocked) {
-            // Indicador travado no centro da cruz
             canvas.drawCircle(cx, cy, 8f * density, dotPaint)
             canvas.drawCircle(cx, cy, 14f * density, lockRingPaint)
             statusLabelPaint.color = Color.parseColor("#FFFFFF")
-            canvas.drawText("TRAVADO (TOQUE NO MEIO)", cx, cy + halfArm + 16f * density, statusLabelPaint)
+            canvas.drawText("LOCKED (TAP CENTER)", cx, cy + halfArm + 16f * density, statusLabelPaint)
         } else {
-            // Quando o avião sobe (pitch > 0), a bolinha vai para BAIXO (+pitch)
             val dotX = cx + roll * halfArm
             val dotY = cy + pitch * halfArm
 
-            // Linhas guias até os eixos X e Y da cruz
             canvas.drawLine(dotX, cy, dotX, dotY, guideLinePaint)
             canvas.drawLine(cx, dotY, dotX, dotY, guideLinePaint)
 
-            // Bolinha principal de posição
             canvas.drawCircle(dotX, dotY, 8.5f * density, dotPaint)
 
             statusLabelPaint.color = Color.parseColor("#666666")
-            canvas.drawText("Toque no centro p/ travar", cx, cy + halfArm + 16f * density, statusLabelPaint)
+            canvas.drawText("Tap center to lock", cx, cy + halfArm + 16f * density, statusLabelPaint)
         }
     }
 
@@ -161,7 +157,6 @@ class VirtualStickView @JvmOverloads constructor(
             val halfArm = min(w, h) * 0.37f
             val dist = hypot((event.x - cx).toDouble(), (event.y - cy).toDouble()).toFloat()
 
-            // Tocar na interseção central da cruz trava/destrava o giroscópio
             if (dist <= halfArm * 0.45f) {
                 isLocked = !isLocked
                 onCenterLockChanged?.invoke(isLocked)

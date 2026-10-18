@@ -4,7 +4,7 @@
 
 # FlightJoy
 
-**Use o celular Android como manche e controles de voo no PC via Wi-Fi.**
+**Use your Android phone as a wireless flight yoke, throttle, rudder, and button panel for PC flight simulators.**
 
 [![Download ZIP](https://img.shields.io/badge/Download-FlightJoy.zip-white?style=for-the-badge&logo=github&logoColor=black)](./Zips/FlightJoy.zip)
 
@@ -17,9 +17,9 @@
 
 ---
 
-## ✈️ Simuladores Compatíveis
+## ✈️ Compatible Simulators
 
-Funciona em qualquer simulador no PC que reconheça joysticks via Windows / vJoy:
+Works with any PC flight simulator that supports Windows / vJoy joystick input:
 
 <div align="center">
   <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/Microsoft_Flight_Simulator_2024_logo.webp" height="48" alt="Microsoft Flight Simulator 2024" title="Microsoft Flight Simulator" />
@@ -35,26 +35,27 @@ Funciona em qualquer simulador no PC que reconheça joysticks via Windows / vJoy
 
 ## 📦 Download
 
-Baixe o pacote pronto (contendo **`Android/FlightJoy.apk`** e **`Windows/FlightJoy.exe`**) direto em [`Zips/FlightJoy.zip`](./Zips/FlightJoy.zip).
+Download the unified package (containing **`Android/FlightJoy.apk`** and **`Windows/FlightJoy.exe`**) directly from [`Zips/FlightJoy.zip`](./Zips/FlightJoy.zip).
 
 ---
 
-## ⚙️ Requisitos no PC
+## ⚙️ PC Requirements
 
-| Requisito | Descrição | Link |
+| Requirement | Description | Link |
 | :--- | :--- | :--- |
-| <img src="https://cdn.simpleicons.org/dotnet/512BD4" width="20" align="center" /> **.NET 8 Desktop Runtime** | Necessário para abrir o `FlightJoy.exe` (versão **x64**). | [Baixar da Microsoft](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) |
-| 🎮 **vJoy 2.1.9.1** | Driver de joystick virtual no Windows (com **Device 1** ativo). | [Baixar vJoy 2.1.9.1](https://sourceforge.net/projects/vjoystick/) |
+| <img src="https://cdn.simpleicons.org/dotnet/512BD4" width="20" align="center" /> **.NET 8 Desktop Runtime** | Required to run `FlightJoy.exe` (**x64** version). | [Download from Microsoft](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) |
+| 🎮 **vJoy 2.1.9.1** | Virtual joystick driver for Windows (with **Device 1** enabled). | [Download vJoy 2.1.9.1](https://sourceforge.net/projects/vjoystick/) |
 
 ---
 
-## 🕹️ Como Usar
+## 🕹️ How to Use
 
-1. Abra o **`FlightJoy.exe`** no PC.
-2. Abra o app **FlightJoy** no celular (na mesma rede Wi-Fi).
-3. Toque no menu **`☰`** $\rightarrow$ clique na lupa **`🔍`** para achar o PC automaticamente $\rightarrow$ **Conectar**.
-4. **Comandos rápidos no celular**:
-   - **Sliders (Throttle e Rudder)**: Só movem quando você clica e arrasta em cima do **quadradinho**.
-   - **Modo Reverso (`REV`)**: Ative o switch ao lado do Throttle para puxar o reverso de cima para baixo (`0%` a `100%`).
-   - **Travar Giroscópio**: Toque no centro da cruz para travar/destravar o manche em `0%`.
-   - **Editar Botões**: Segure o dedo sobre qualquer botão para mudar o nome, modo (*Push/Switch*) ou botão vJoy (`1..32`).
+1. Launch **`FlightJoy.exe`** on your PC.
+2. Open the **FlightJoy** app on your Android phone (connected to the same Wi-Fi network).
+3. Tap **`☰`** $\rightarrow$ **Connection** $\rightarrow$ tap **`🔍`** to automatically find your PC $\rightarrow$ **Connect**.
+4. **Controls Overview**:
+   - **Sliders (Throttle, Brake & Rudder)**: Only move when you press and drag directly on the **square handle**.
+   - **Reverse Mode (`REV`)**: Toggle the `REV` switch next to the Throttle to pull reverse thrust from top (`0%`) to bottom (`100%`).
+   - **Progressive Brake Slider (`BRAKE`)**: Pull the vertical Brake slider down (`0%` to `100%`) to adjust wheel braking intensity, or use the `PRK BRK` / `BRAKE` buttons.
+   - **Lock Gyroscope**: Tap the center of the `+` cross to lock/unlock the gyroscope at `0%`.
+   - **Edit Controls**: Tap **`☰`** $\rightarrow$ **Edit Controls**, then tap any button to rename it, change its vJoy button (`1..32`), or choose between **Single Click** and **Hold** mode.

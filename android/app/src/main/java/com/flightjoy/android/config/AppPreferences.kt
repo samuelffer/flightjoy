@@ -21,10 +21,10 @@ class AppPreferences(context: Context) {
 
         for (def in defaultButtons) {
             val i = def.slotIndex
-            val label = prefs.getString("btn_${i}_label", def.label) ?: def.label
+            val rawLabel = prefs.getString("btn_${i}_label_en", null) ?: def.label
             val targetVJoy = prefs.getInt("btn_${i}_vjoy", def.targetVJoyButton).coerceIn(1, 32)
-            val isToggle = prefs.getBoolean("btn_${i}_toggle", def.isToggleMode)
-            loadedButtons.add(PhoneButtonConfig(i, label, targetVJoy, isToggle))
+            val isHold = prefs.getBoolean("btn_${i}_hold", def.isHoldMode)
+            loadedButtons.add(PhoneButtonConfig(i, rawLabel, targetVJoy, isHold))
         }
 
         return FlightClientConfig(
@@ -46,6 +46,7 @@ class AppPreferences(context: Context) {
             mapRudderAxis = prefs.getString("map_rudder", "RZ") ?: "RZ",
             mapThrottleAxis = prefs.getString("map_throttle", "Z") ?: "Z",
             mapReverseAxis = prefs.getString("map_reverse", "SL0") ?: "SL0",
+            mapBrakeAxis = prefs.getString("map_brake", "SL1") ?: "SL1",
             buttons = loadedButtons
         )
     }
@@ -70,12 +71,13 @@ class AppPreferences(context: Context) {
             .putString("map_rudder", config.mapRudderAxis)
             .putString("map_throttle", config.mapThrottleAxis)
             .putString("map_reverse", config.mapReverseAxis)
+            .putString("map_brake", config.mapBrakeAxis)
 
         for (btn in config.buttons) {
             val i = btn.slotIndex
-            editor.putString("btn_${i}_label", btn.label.trim().ifEmpty { "B$i" })
+            editor.putString("btn_${i}_label_en", btn.label.trim().ifEmpty { "B$i" })
             editor.putInt("btn_${i}_vjoy", btn.targetVJoyButton.coerceIn(1, 32))
-            editor.putBoolean("btn_${i}_toggle", btn.isToggleMode)
+            editor.putBoolean("btn_${i}_hold", btn.isHoldMode)
         }
 
         editor.apply()

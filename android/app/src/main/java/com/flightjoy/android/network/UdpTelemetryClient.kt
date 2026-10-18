@@ -47,7 +47,7 @@ class UdpTelemetryClient(
         get() = running.get()
 
     /**
-     * Busca automaticamente um PC rodando o FlightJoy na mesma rede local via UDP Broadcast.
+     * Automatically finds a PC running FlightJoy on the local network via UDP Broadcast.
      */
     fun discoverPcOnLan(port: Int, onResult: (DiscoveredPc?) -> Unit) {
         Thread({
@@ -103,7 +103,7 @@ class UdpTelemetryClient(
                         val decoded = PacketCodec.decodeFromBytes(dp.data, dp.length)
                         if (decoded != null && decoded.type == ProtocolConstants.TYPE_DISCOVER_REPLY) {
                             val ip = dp.address.hostAddress ?: continue
-                            val pcName = decoded.pcName?.ifBlank { "PC Desktop" } ?: "PC Desktop"
+                            val pcName = decoded.pcName?.ifBlank { "Desktop PC" } ?: "Desktop PC"
                             val replyPort = if (decoded.port > 0) decoded.port else targetPort
                             found = DiscoveredPc(ip, pcName, replyPort)
                             break
@@ -113,14 +113,14 @@ class UdpTelemetryClient(
                 }
 
                 if (found != null) {
-                    logger.info("Busca", "PC encontrado: ${found.pcName} (${found.ipAddress}:${found.port})")
+                    logger.info("Discovery", "PC found: ${found.pcName} (${found.ipAddress}:${found.port})")
                 } else {
-                    logger.warn("Busca", "Nenhum PC encontrado na porta UDP $targetPort.")
+                    logger.warn("Discovery", "No PC found on UDP port $targetPort.")
                 }
 
                 onResult(found)
             } catch (ex: Exception) {
-                logger.error("Busca", "Erro na busca automática: ${ex.message}")
+                logger.error("Discovery", "Auto-discovery error: ${ex.message}")
                 onResult(null)
             } finally {
                 try {
@@ -188,11 +188,11 @@ class UdpTelemetryClient(
         sessionId = null
 
         if (wasRunning) {
-            logger.info("Rede", "Desconectado.")
+            logger.info("Network", "Disconnected.")
             onStatusChanged(
                 ClientStatusSnapshot(
                     state = ClientConnectionState.DISCONNECTED,
-                    message = "Desconectado"
+                    message = "Disconnected"
                 )
             )
         }
@@ -206,7 +206,7 @@ class UdpTelemetryClient(
             onStatusChanged(
                 ClientStatusSnapshot(
                     state = ClientConnectionState.PAIRING,
-                    message = "Conectando..."
+                    message = "Connecting..."
                 )
             )
 
@@ -247,13 +247,13 @@ class UdpTelemetryClient(
             }
 
             if (welcomePacket == null || welcomePacket.sessionId.isNullOrBlank()) {
-                logger.error("Rede", "Sem resposta de ${config.serverIp}:$targetPort.")
+                logger.error("Network", "No response from ${config.serverIp}:$targetPort.")
                 running.set(false)
                 udp.close()
                 onStatusChanged(
                     ClientStatusSnapshot(
                         state = ClientConnectionState.ERROR_OR_TIMEOUT,
-                        message = "Sem resposta (${config.serverIp})"
+                        message = "No response (${config.serverIp})"
                     )
                 )
                 return
@@ -265,11 +265,11 @@ class UdpTelemetryClient(
             lastServerPongMs.set(System.currentTimeMillis())
             packetsSentCount.set(0L)
 
-            logger.info("Rede", "Conectado a $pcDisplay!")
+            logger.info("Network", "Connected to $pcDisplay!")
             onStatusChanged(
                 ClientStatusSnapshot(
                     state = ClientConnectionState.CONNECTED,
-                    message = "Conectado • $pcDisplay",
+                    message = "Connected • $pcDisplay",
                     rttMs = 0L,
                     packetsSent = 0L
                 )
@@ -292,12 +292,12 @@ class UdpTelemetryClient(
                 val intervalMs = (1000L / cfg.sendRateHz.coerceIn(20, 120)).coerceAtLeast(8L)
 
                 if (loopStart - lastServerPongMs.get() > 3800L) {
-                    logger.warn("Watchdog", "PC parou de responder.")
+                    logger.warn("Watchdog", "PC stopped responding.")
                     running.set(false)
                     onStatusChanged(
                         ClientStatusSnapshot(
                             state = ClientConnectionState.ERROR_OR_TIMEOUT,
-                            message = "Desconectado (Timeout)"
+                            message = "Disconnected (Timeout)"
                         )
                     )
                     break
@@ -316,12 +316,14 @@ class UdpTelemetryClient(
                     yawScaled = FlightJoyPacket.scaleAxis(rudderNorm),
                     throttleScaled = FlightJoyPacket.scaleAxis(controlState.throttle),
                     auxScaled = FlightJoyPacket.scaleAxis(controlState.reverseThrottle),
+                    brakeScaled = FlightJoyPacket.scaleAxis(controlState.brakeSlider),
                     buttonsMask = controlState.getButtonsMask(),
                     mapPitch = cfg.mapPitchAxis,
                     mapRoll = cfg.mapRollAxis,
                     mapRudder = cfg.mapRudderAxis,
                     mapThrottle = cfg.mapThrottleAxis,
-                    mapReverse = cfg.mapReverseAxis
+                    mapReverse = cfg.mapReverseAxis,
+                    mapBrake = cfg.mapBrakeAxis
                 )
                 val bytes = PacketCodec.encodeToBytes(statePacket)
                 udp.send(DatagramPacket(bytes, bytes.size))
@@ -342,7 +344,7 @@ class UdpTelemetryClient(
                     onStatusChanged(
                         ClientStatusSnapshot(
                             state = ClientConnectionState.CONNECTED,
-                            message = "Conectado ($pcDisplay) • ${lastRttMs.get()} ms",
+                            message = "Connected ($pcDisplay) • ${lastRttMs.get()} ms",
                             rttMs = lastRttMs.get(),
                             packetsSent = totalSent
                         )
@@ -357,12 +359,12 @@ class UdpTelemetryClient(
             }
         } catch (ex: Exception) {
             if (running.get()) {
-                logger.error("Rede", "Falha UDP: ${ex.message}")
+                logger.error("Network", "UDP failure: ${ex.message}")
                 running.set(false)
                 onStatusChanged(
                     ClientStatusSnapshot(
                         state = ClientConnectionState.ERROR_OR_TIMEOUT,
-                        message = "Erro de conexão"
+                        message = "Connection error"
                     )
                 )
             }
@@ -392,7 +394,7 @@ class UdpTelemetryClient(
                     onStatusChanged(
                         ClientStatusSnapshot(
                             state = ClientConnectionState.DISCONNECTED,
-                            message = "Desconectado pelo PC"
+                            message = "Disconnected by PC"
                         )
                     )
                     break

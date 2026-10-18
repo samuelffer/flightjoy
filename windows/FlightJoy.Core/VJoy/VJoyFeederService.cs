@@ -4,9 +4,8 @@ using FlightJoy.Core.Logging;
 namespace FlightJoy.Core.VJoy;
 
 /// <summary>
-/// Serviço feeder real para o driver vJoy 2.1.9.1 via vJoyInterface.dll.
-/// Caso o driver ou a DLL não estejam disponíveis no momento, entra automaticamente
-/// em Modo Simulação (Preview) mantendo diagnóstico detalhado nos logs.
+/// Real feeder service for vJoy 2.1.9.1 driver via vJoyInterface.dll.
+/// Falls back to Simulation Mode (Preview) if the driver or DLL is unavailable.
 /// </summary>
 public sealed class VJoyFeederService : IVJoyFeeder
 {
@@ -19,7 +18,7 @@ public sealed class VJoyFeederService : IVJoyFeeder
     public bool IsAcquired { get; private set; }
     public bool IsSimulationMode { get; private set; }
     public uint DeviceId { get; private set; } = 1;
-    public string StatusMessage { get; private set; } = "Não inicializado";
+    public string StatusMessage { get; private set; } = "Not initialized";
 
     public VJoyFeederService(FlightLogger logger)
     {
@@ -46,7 +45,7 @@ public sealed class VJoyFeederService : IVJoyFeeder
 
         if (!OperatingSystem.IsWindows())
         {
-            EnableSimulationFallback("Sistema operacional não é Windows.");
+            EnableSimulationFallback("OS is not Windows.");
             return false;
         }
 
@@ -56,7 +55,7 @@ public sealed class VJoyFeederService : IVJoyFeeder
 
             if (!VJoyNativeMethods.vJoyEnabled())
             {
-                EnableSimulationFallback("Driver vJoy não está habilitado (vJoyEnabled retornou FALSE). Verifique o vJoyConf / Gerenciador de Dispositivos.");
+                EnableSimulationFallback("vJoy driver is not enabled (vJoyEnabled returned FALSE). Check vJoyConf / Device Manager.");
                 return false;
             }
 
@@ -66,36 +65,36 @@ public sealed class VJoyFeederService : IVJoyFeeder
 
             if (versionMatched)
             {
-                _logger.Info("vJoy", $"vJoy detectado (Versão 0x{rawVersion:X}, DLL=0x{dllVer:X}, Driver=0x{drvVer:X}) via '{dllPathInfo}'.");
+                _logger.Info("vJoy", $"vJoy detected (Version 0x{rawVersion:X}, DLL=0x{dllVer:X}, Driver=0x{drvVer:X}) via '{dllPathInfo}'.");
             }
             else
             {
-                _logger.Warn("vJoy", $"Aviso de versão vJoy: DLL (0x{dllVer:X}) difere do Driver (0x{drvVer:X}) em '{dllPathInfo}'. Tentando adquirir mesmo assim.");
+                _logger.Warn("vJoy", $"vJoy version warning: DLL (0x{dllVer:X}) differs from Driver (0x{drvVer:X}) at '{dllPathInfo}'. Attempting to acquire anyway.");
             }
 
             VjdStat status = VJoyNativeMethods.GetVJDStatus(deviceId);
             switch (status)
             {
                 case VjdStat.VJD_STAT_OWN:
-                    _logger.Info("vJoy", $"Dispositivo vJoy #{deviceId} já pertence a este processo.");
+                    _logger.Info("vJoy", $"vJoy Device #{deviceId} is already owned by this process.");
                     break;
                 case VjdStat.VJD_STAT_FREE:
-                    _logger.Info("vJoy", $"Dispositivo vJoy #{deviceId} está livre. Adquirindo...");
+                    _logger.Info("vJoy", $"vJoy Device #{deviceId} is free. Acquiring...");
                     break;
                 case VjdStat.VJD_STAT_BUSY:
-                    EnableSimulationFallback($"Dispositivo vJoy #{deviceId} está ocupado por outro aplicativo (VJD_STAT_BUSY). Feche outros feeders ou escolha outro ID.");
+                    EnableSimulationFallback($"vJoy Device #{deviceId} is busy (used by another app). Close other feeders or switch Device ID.");
                     return false;
                 case VjdStat.VJD_STAT_MISS:
-                    EnableSimulationFallback($"Dispositivo vJoy #{deviceId} não está configurado/habilitado no vJoyConf (VJD_STAT_MISS).");
+                    EnableSimulationFallback($"vJoy Device #{deviceId} is not configured/enabled in vJoyConf.");
                     return false;
                 default:
-                    EnableSimulationFallback($"Dispositivo vJoy #{deviceId} em estado desconhecido ({status}).");
+                    EnableSimulationFallback($"vJoy Device #{deviceId} is in unknown state ({status}).");
                     return false;
             }
 
             if (status != VjdStat.VJD_STAT_OWN && !VJoyNativeMethods.AcquireVJD(deviceId))
             {
-                EnableSimulationFallback($"Falha ao chamar AcquireVJD({deviceId}).");
+                EnableSimulationFallback($"Failed to call AcquireVJD({deviceId}).");
                 return false;
             }
 
@@ -105,23 +104,23 @@ public sealed class VJoyFeederService : IVJoyFeeder
             ResetToNeutral();
 
             int buttonCount = VJoyNativeMethods.GetVJDButtonNumber(deviceId);
-            StatusMessage = $"vJoy Ativo — Device #{deviceId} (0x{drvVer:X}, {buttonCount} botões)";
-            _logger.Info("vJoy", $"Dispositivo vJoy #{deviceId} adquirido com sucesso ({buttonCount} botões habilitados).");
+            StatusMessage = $"vJoy Active — Device #{deviceId} (0x{drvVer:X}, {buttonCount} buttons)";
+            _logger.Info("vJoy", $"vJoy Device #{deviceId} acquired ({buttonCount} buttons enabled).");
             return true;
         }
         catch (DllNotFoundException ex)
         {
-            EnableSimulationFallback($"vJoyInterface.dll não encontrada no sistema ({ex.Message}). Instale o vJoy 2.1.9.1.");
+            EnableSimulationFallback($"vJoyInterface.dll not found ({ex.Message}). Install vJoy 2.1.9.1.");
             return false;
         }
         catch (BadImageFormatException ex)
         {
-            EnableSimulationFallback($"Incompatibilidade de arquitetura x86/x64 ao carregar vJoyInterface.dll ({ex.Message}).");
+            EnableSimulationFallback($"x86/x64 architecture mismatch loading vJoyInterface.dll ({ex.Message}).");
             return false;
         }
         catch (Exception ex)
         {
-            EnableSimulationFallback($"Erro ao inicializar vJoy: {ex.Message}");
+            EnableSimulationFallback($"Error initializing vJoy: {ex.Message}");
             return false;
         }
     }
@@ -152,7 +151,7 @@ public sealed class VJoyFeederService : IVJoyFeeder
     {
         IsAcquired = false;
         IsSimulationMode = true;
-        StatusMessage = $"Simulação (vJoy inativo): {reason}";
+        StatusMessage = $"Simulation (vJoy inactive): {reason}";
         _logger.Warn("vJoy", StatusMessage);
     }
 
@@ -164,11 +163,11 @@ public sealed class VJoyFeederService : IVJoyFeeder
             {
                 VJoyNativeMethods.ResetVJD(DeviceId);
                 VJoyNativeMethods.RelinquishVJD(DeviceId);
-                _logger.Info("vJoy", $"Dispositivo vJoy #{DeviceId} liberado.");
+                _logger.Info("vJoy", $"vJoy Device #{DeviceId} released.");
             }
             catch (Exception ex)
             {
-                _logger.Warn("vJoy", $"Erro ao liberar vJoy #{DeviceId}: {ex.Message}");
+                _logger.Warn("vJoy", $"Error releasing vJoy #{DeviceId}: {ex.Message}");
             }
         }
 
@@ -186,17 +185,16 @@ public sealed class VJoyFeederService : IVJoyFeeder
             }
             catch (Exception ex)
             {
-                _logger.Warn("vJoy", $"Falha em ResetVJD: {ex.Message}");
+                _logger.Warn("vJoy", $"Failed in ResetVJD: {ex.Message}");
             }
         }
 
-        // Centraliza eixos de voo (X, Y, Z, RX, RY, RZ) em 0.0 e sliders em -1.0 (0% acelerador) ou 0.0
         foreach (VJoyAxisUsage axis in Enum.GetValues<VJoyAxisUsage>())
         {
             if (axis == VJoyAxisUsage.None)
                 continue;
 
-            double neutralNormalized = (axis == VJoyAxisUsage.SL0) ? -1.0 : 0.0;
+            double neutralNormalized = (axis is VJoyAxisUsage.SL0 or VJoyAxisUsage.SL1) ? -1.0 : 0.0;
             SetNormalizedAxis(axis, neutralNormalized);
         }
 
@@ -211,7 +209,6 @@ public sealed class VJoyFeederService : IVJoyFeeder
                 }
                 catch
                 {
-                    // Ignora erro individual de botão não configurado
                 }
             }
         }
@@ -237,7 +234,7 @@ public sealed class VJoyFeederService : IVJoyFeeder
             }
             catch (Exception ex)
             {
-                _logger.Error("vJoy", $"Erro em SetAxis({axis}): {ex.Message}");
+                _logger.Error("vJoy", $"Error in SetAxis({axis}): {ex.Message}");
             }
         }
     }
@@ -258,7 +255,7 @@ public sealed class VJoyFeederService : IVJoyFeeder
             }
             catch (Exception ex)
             {
-                _logger.Error("vJoy", $"Erro em SetBtn({vjoyButtonNumber}): {ex.Message}");
+                _logger.Error("vJoy", $"Error in SetBtn({vjoyButtonNumber}): {ex.Message}");
             }
         }
     }

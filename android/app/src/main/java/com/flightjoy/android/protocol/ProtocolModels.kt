@@ -74,6 +74,9 @@ data class FlightJoyPacket(
     @SerializedName("a")
     var auxScaled: Int = -10000,
 
+    @SerializedName("brk")
+    var brakeScaled: Int = -10000,
+
     @SerializedName("b")
     var buttonsMask: Int = 0,
 
@@ -91,6 +94,9 @@ data class FlightJoyPacket(
 
     @SerializedName("ma")
     var mapReverse: String? = null,
+
+    @SerializedName("mb")
+    var mapBrake: String? = null,
 
     @SerializedName("mac")
     var mac: String? = null

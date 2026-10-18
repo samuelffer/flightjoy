@@ -19,23 +19,28 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private const double CrossHalfArm = 48.0;
 
     private readonly Dispatcher _dispatcher;
+    private readonly DispatcherTimer _smoothUiTimer;
     private readonly FlightLogger _logger;
     private readonly VJoyFeederService _feeder;
     private readonly ControlPipeline _pipeline;
     private readonly UdpControlServer _server;
     private readonly AppConfig _config;
 
-    private string _connectionBadgeText = "Aguardando celular...";
-    private string _vjoyBadgeText = "Verificando vJoy...";
+    private string _connectionBadgeText = "Waiting for phone...";
+    private string _vjoyBadgeText = "Checking vJoy...";
     private string _telemetryText = "0.0 Hz";
-    private string _activeButtonsText = "Nenhum";
+    private string _activeButtonsText = "None";
     private bool _isServerRunning;
     private bool _isLogsVisible;
     private bool _isPhoneConnected;
 
-    private double _pitchNorm;
-    private double _rollNorm;
-    private double _rudderNorm;
+    private double _targetPitchNorm;
+    private double _targetRollNorm;
+    private double _targetRudderNorm;
+
+    private double _displayPitchNorm;
+    private double _displayRollNorm;
+    private double _displayRudderNorm;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -72,6 +77,13 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             Logs.Add(existing.ToString());
         }
+
+        _smoothUiTimer = new DispatcherTimer(DispatcherPriority.Render, _dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _smoothUiTimer.Tick += OnSmoothUiTick;
+        _smoothUiTimer.Start();
 
         AcquireVJoyDevice();
         StartServer();
@@ -121,7 +133,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public string ServerButtonText => IsServerRunning ? "Parar" : "Iniciar";
+    public string ServerButtonText => IsServerRunning ? "Stop" : "Start";
 
     public bool IsPhoneConnected
     {
@@ -141,16 +153,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         ? new SolidColorBrush(Color.FromRgb(0x34, 0xD3, 0x99))
         : new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
 
-    // Coordenadas em tempo real para a Cruz (Pitch & Roll) de 128x128 (Centro = 64,64)
-    public double StickDotLeft => CrossCenter + (_rollNorm * CrossHalfArm) - 5.0;
-    public double StickDotTop => CrossCenter + (_pitchNorm * CrossHalfArm) - 5.0;
-    public double StickCenterX => CrossCenter + (_rollNorm * CrossHalfArm);
-    public double StickCenterY => CrossCenter + (_pitchNorm * CrossHalfArm);
-    public double RollAxisDotLeft => CrossCenter + (_rollNorm * CrossHalfArm) - 3.5;
-    public double PitchAxisDotTop => CrossCenter + (_pitchNorm * CrossHalfArm) - 3.5;
+    // Real-time smoothly interpolated coordinates for the 128x128 Pitch/Roll Cross (Center = 64,64)
+    public double StickDotLeft => CrossCenter + (_displayRollNorm * CrossHalfArm) - 5.0;
+    public double StickDotTop => CrossCenter + (_displayPitchNorm * CrossHalfArm) - 5.0;
+    public double StickCenterX => CrossCenter + (_displayRollNorm * CrossHalfArm);
+    public double StickCenterY => CrossCenter + (_displayPitchNorm * CrossHalfArm);
 
-    // Coordenada em tempo real para a linha horizontal do Rudder (Largura 128, Centro = 64)
-    public double RudderDotLeft => CrossCenter + (_rudderNorm * CrossHalfArm) - 4.5;
+    // Real-time smoothly interpolated coordinate for the horizontal Rudder line (Width 128, Center = 64)
+    public double RudderDotLeft => CrossCenter + (_displayRudderNorm * CrossHalfArm) - 4.5;
 
     public bool IsLogsVisible
     {
@@ -245,8 +255,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.Error("Rede", $"Erro na porta {_config.UdpPort}: {ex.Message}");
-            ConnectionBadgeText = $"Erro porta {_config.UdpPort}";
+            _logger.Error("Network", $"Port {_config.UdpPort} error: {ex.Message}");
+            ConnectionBadgeText = $"Port error {_config.UdpPort}";
             IsServerRunning = false;
         }
     }
@@ -274,10 +284,27 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void ResetVisualAxes()
     {
-        _pitchNorm = 0.0;
-        _rollNorm = 0.0;
-        _rudderNorm = 0.0;
-        NotifyCrossChanged();
+        _targetPitchNorm = 0.0;
+        _targetRollNorm = 0.0;
+        _targetRudderNorm = 0.0;
+    }
+
+    private void OnSmoothUiTick(object? sender, EventArgs e)
+    {
+        const double lerpFactor = 0.32;
+        const double epsilon = 0.0005;
+
+        double dp = _targetPitchNorm - _displayPitchNorm;
+        double dr = _targetRollNorm - _displayRollNorm;
+        double dy = _targetRudderNorm - _displayRudderNorm;
+
+        if (Math.Abs(dp) > epsilon || Math.Abs(dr) > epsilon || Math.Abs(dy) > epsilon)
+        {
+            _displayPitchNorm = Math.Abs(dp) <= epsilon ? _targetPitchNorm : _displayPitchNorm + (dp * lerpFactor);
+            _displayRollNorm = Math.Abs(dr) <= epsilon ? _targetRollNorm : _displayRollNorm + (dr * lerpFactor);
+            _displayRudderNorm = Math.Abs(dy) <= epsilon ? _targetRudderNorm : _displayRudderNorm + (dy * lerpFactor);
+            NotifyCrossChanged();
+        }
     }
 
     private void NotifyCrossChanged()
@@ -286,8 +313,6 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(StickDotTop));
         OnPropertyChanged(nameof(StickCenterX));
         OnPropertyChanged(nameof(StickCenterY));
-        OnPropertyChanged(nameof(RollAxisDotLeft));
-        OnPropertyChanged(nameof(PitchAxisDotTop));
         OnPropertyChanged(nameof(RudderDotLeft));
     }
 
@@ -303,12 +328,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
             ConnectionBadgeText = state switch
             {
-                ConnectionState.Stopped => "Servidor parado",
-                ConnectionState.Listening => "Aguardando celular...",
+                ConnectionState.Stopped => "Server stopped",
+                ConnectionState.Listening => "Waiting for phone...",
                 ConnectionState.PairedAndConnected => string.IsNullOrWhiteSpace(device?.DeviceName)
-                    ? "Celular conectado"
-                    : $"Celular conectado — {device.DeviceName}",
-                ConnectionState.DisconnectedTimeout => "Celular desconectado",
+                    ? "Phone connected"
+                    : $"Phone connected — {device.DeviceName}",
+                ConnectionState.DisconnectedTimeout => "Phone disconnected",
                 _ => state.ToString()
             };
         });
@@ -327,13 +352,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             }
 
             if (state.ProcessedSourceAxes.TryGetValue(SourceAxis.Pitch, out double p))
-                _pitchNorm = Math.Clamp(p, -1.0, 1.0);
+                _targetPitchNorm = Math.Clamp(p, -1.0, 1.0);
             if (state.ProcessedSourceAxes.TryGetValue(SourceAxis.Roll, out double r))
-                _rollNorm = Math.Clamp(r, -1.0, 1.0);
+                _targetRollNorm = Math.Clamp(r, -1.0, 1.0);
             if (state.ProcessedSourceAxes.TryGetValue(SourceAxis.Yaw, out double y))
-                _rudderNorm = Math.Clamp(y, -1.0, 1.0);
-
-            NotifyCrossChanged();
+                _targetRudderNorm = Math.Clamp(y, -1.0, 1.0);
 
             var pressedList = state.TargetVJoyButtons
                 .Where(kv => kv.Value)
@@ -342,7 +365,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
             ActiveButtonsText = pressedList.Count > 0
                 ? string.Join(", ", pressedList)
-                : "Nenhum";
+                : "None";
         });
     }
 
@@ -350,7 +373,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         _dispatcher.BeginInvoke(() =>
         {
-            TelemetryText = $"{stats.CurrentPacketsPerSecond:0.0} Hz  •  Pacotes: {stats.TotalPacketsReceived}";
+            TelemetryText = $"{stats.CurrentPacketsPerSecond:0.0} Hz  •  Packets: {stats.TotalPacketsReceived}";
         });
     }
 
@@ -368,6 +391,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
+        _smoothUiTimer.Stop();
         _server.Dispose();
         _feeder.Dispose();
     }

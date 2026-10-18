@@ -4,9 +4,8 @@ using FlightJoy.Core.VJoy;
 namespace FlightJoy.Core.Protocol;
 
 /// <summary>
-/// Representa qualquer pacote UDP do protocolo FlightJoy v1.
-/// Toda a configuração de sensibilidade, calibração e mapeamento de eixos/botões
-/// vem diretamente do aplicativo Android.
+/// Represents a UDP packet in the FlightJoy v1 protocol.
+/// All sensitivity, calibration, and axis/button mapping settings are controlled directly by the Android app.
 /// </summary>
 public sealed class FlightJoyPacket
 {
@@ -55,57 +54,66 @@ public sealed class FlightJoyPacket
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long ClientTimestampMs { get; set; }
 
-    /// <summary>Pitch escalado [-10000, 10000]</summary>
+    /// <summary>Scaled Pitch [-10000, 10000]</summary>
     [JsonPropertyName("p")]
     public int PitchScaled { get; set; }
 
-    /// <summary>Roll escalado [-10000, 10000]</summary>
+    /// <summary>Scaled Roll [-10000, 10000]</summary>
     [JsonPropertyName("r")]
     public int RollScaled { get; set; }
 
-    /// <summary>Rudder / Yaw (pedais + giroscópio opcional) escalado [-10000, 10000]</summary>
+    /// <summary>Scaled Rudder / Yaw [-10000, 10000]</summary>
     [JsonPropertyName("y")]
     public int YawScaled { get; set; }
 
-    /// <summary>Throttle slider vertical escalado [-10000, 10000]</summary>
+    /// <summary>Scaled vertical Throttle slider [-10000, 10000]</summary>
     [JsonPropertyName("t")]
     public int ThrottleScaled { get; set; }
 
-    /// <summary>Throttle Reverso (3º slider acionado pelo switch REV) escalado [-10000, 10000]</summary>
+    /// <summary>Scaled Reverse Throttle slider [-10000, 10000]</summary>
     [JsonPropertyName("a")]
     public int AuxScaled { get; set; } = -10000;
 
+    /// <summary>Scaled progressive Brake slider [-10000, 10000]</summary>
+    [JsonPropertyName("brk")]
+    public int BrakeScaled { get; set; } = -10000;
+
     /// <summary>
-    /// Máscara de 32 bits dos botões vJoy já mapeados pelo celular
-    /// (bit 0 = Botão vJoy 1, ..., bit 31 = Botão vJoy 32).
+    /// 32-bit bitmask of vJoy buttons mapped by the phone
+    /// (bit 0 = vJoy Button 1, ..., bit 31 = vJoy Button 32).
     /// </summary>
     [JsonPropertyName("b")]
     public int ButtonsMask { get; set; }
 
-    /// <summary>Eixo vJoy alvo para Pitch enviado pelo celular (ex: "Y")</summary>
+    /// <summary>Target vJoy axis for Pitch sent by the phone (e.g. "Y")</summary>
     [JsonPropertyName("mp")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MapPitch { get; set; }
 
-    /// <summary>Eixo vJoy alvo para Roll enviado pelo celular (ex: "X")</summary>
+    /// <summary>Target vJoy axis for Roll sent by the phone (e.g. "X")</summary>
     [JsonPropertyName("mr")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MapRoll { get; set; }
 
-    /// <summary>Eixo vJoy alvo para Rudder/Pedais enviado pelo celular (ex: "RZ")</summary>
+    /// <summary>Target vJoy axis for Rudder sent by the phone (e.g. "RZ")</summary>
     [JsonPropertyName("my")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MapRudder { get; set; }
 
-    /// <summary>Eixo vJoy alvo para Throttle enviado pelo celular (ex: "Z")</summary>
+    /// <summary>Target vJoy axis for Throttle sent by the phone (e.g. "Z")</summary>
     [JsonPropertyName("mt")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MapThrottle { get; set; }
 
-    /// <summary>Eixo vJoy alvo para Throttle Reverso enviado pelo celular (ex: "SL0")</summary>
+    /// <summary>Target vJoy axis for Reverse Throttle sent by the phone (e.g. "SL0")</summary>
     [JsonPropertyName("ma")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MapReverse { get; set; }
+
+    /// <summary>Target vJoy axis for Progressive Brake slider sent by the phone (e.g. "SL1")</summary>
+    [JsonPropertyName("mb")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MapBrake { get; set; }
 
     [JsonPropertyName("mac")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -125,6 +133,9 @@ public sealed class FlightJoyPacket
 
     [JsonIgnore]
     public double AuxNormalized => Math.Clamp((double)AuxScaled / ProtocolConstants.AxisScaleFactor, -1.0, 1.0);
+
+    [JsonIgnore]
+    public double BrakeNormalized => Math.Clamp((double)BrakeScaled / ProtocolConstants.AxisScaleFactor, -1.0, 1.0);
 
     public bool IsButtonPressed(int vjoyButtonOneBasedIndex)
     {

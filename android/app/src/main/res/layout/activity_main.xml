@@ -6,27 +6,27 @@
     android:background="@color/bg_primary"
     android:keepScreenOn="true">
 
-    <!-- COCKPIT PRINCIPAL -->
+    <!-- MAIN COCKPIT (LANDSCAPE) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
         android:padding="8dp">
 
-        <!-- LADO ESQUERDO: Slider Vertical Grosso de Potência / Reverso -->
+        <!-- LEFT COLUMN: Thick Vertical Throttle / Reverse Slider -->
         <LinearLayout
-            android:layout_width="82dp"
+            android:layout_width="78dp"
             android:layout_height="match_parent"
             android:background="@color/bg_card"
             android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:padding="7dp">
+            android:padding="6dp">
 
             <TextView
                 android:id="@+id/txtThrottleTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="POTÊNCIA"
+                android:text="THROTTLE"
                 android:textColor="@color/text_secondary"
                 android:textSize="10sp"
                 android:textStyle="bold" />
@@ -48,29 +48,19 @@
                 android:layout_weight="1" />
         </LinearLayout>
 
-        <!-- COLUNA LATERAL AO LADO DO THROTTLE: Switch Retangular Estilizado do Modo Reverso -->
-        <!-- Posicionado no topo com recuo seguro para evitar toques acidentais ao mover o throttle -->
+        <!-- SECOND COLUMN NEXT TO THROTTLE: Styled Rectangular Reverse Switch (No "MODO" label above it) -->
         <LinearLayout
-            android:layout_width="50dp"
+            android:layout_width="46dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="5dp"
             android:gravity="top|center_horizontal"
             android:orientation="vertical"
-            android:paddingTop="6dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
-                android:text="MODO"
-                android:textColor="#757575"
-                android:textSize="9sp"
-                android:textStyle="bold" />
+            android:paddingTop="4dp">
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnReverseSwitch"
-                android:layout_width="44dp"
-                android:layout_height="62dp"
+                android:layout_width="42dp"
+                android:layout_height="58dp"
                 android:background="@drawable/bg_reverse_switch_off"
                 android:gravity="center"
                 android:padding="2dp"
@@ -81,17 +71,17 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- CENTRO (Mais compacto): Botão Menu (3 Listras), Indicador do Giroscópio e Calibração -->
+        <!-- CENTER COLUMN: Menu Button (☰), Simple Cross Gyro Indicator, and Calibrate -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginHorizontal="8dp"
-            android:layout_weight="0.92"
+            android:layout_marginHorizontal="7dp"
+            android:layout_weight="0.88"
             android:background="@color/bg_card"
             android:orientation="vertical"
             android:padding="8dp">
 
-            <!-- Topo Central: Botão 3 Listras + Status + Botão Calibrar -->
+            <!-- Top Center Bar: ☰ Menu + Status + Calibrate -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -120,7 +110,7 @@
                     android:ellipsize="end"
                     android:gravity="center"
                     android:singleLine="true"
-                    android:text="Desconectado"
+                    android:text="Disconnected"
                     android:textColor="@color/text_secondary"
                     android:textSize="10sp"
                     android:textStyle="bold" />
@@ -134,13 +124,13 @@
                     android:insetBottom="0dp"
                     android:minWidth="68dp"
                     android:paddingHorizontal="8dp"
-                    android:text="Calibrar"
+                    android:text="Calibrate"
                     android:textAllCaps="false"
                     android:textColor="@color/text_primary"
                     android:textSize="10sp" />
             </LinearLayout>
 
-            <!-- Indicador do Giroscópio Compacto no Meio (Clique no centro trava/destrava) -->
+            <!-- Simple Cross (+) Gyroscope Indicator -->
             <com.flightjoy.android.ui.VirtualStickView
                 android:id="@+id/virtualStickView"
                 android:layout_width="match_parent"
@@ -159,165 +149,237 @@
                 android:typeface="monospace" />
         </LinearLayout>
 
-        <!-- LADO DIREITO: Botões Organizados + Slider Inferior de Rudder (Pedais) -->
+        <!-- RIGHT COLUMN: Flight Buttons + Small Vertical Brake Slider + Bottom Horizontal Rudder Slider -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="1.48"
+            android:layout_weight="1.54"
             android:background="@color/bg_card"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:padding="7dp">
 
+            <!-- EDIT CONTROLS MODE BANNER (Only visible when Edit Controls mode is active) -->
             <LinearLayout
+                android:id="@+id/editModeBar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
+                android:layout_marginBottom="5dp"
+                android:background="#1E1E1E"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:visibility="gone">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="COMANDOS DE VOO"
-                    android:textColor="@color/text_secondary"
+                    android:text="EDIT MODE — Tap any button to configure"
+                    android:textColor="#FFFFFF"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
-                <TextView
+                <Button
+                    android:id="@+id/btnResetButtons"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Segure p/ editar"
-                    android:textColor="#666666"
+                    android:layout_height="28dp"
+                    android:layout_marginEnd="6dp"
+                    android:backgroundTint="#2E2E2E"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="60dp"
+                    android:paddingHorizontal="8dp"
+                    android:text="Reset"
+                    android:textAllCaps="false"
+                    android:textColor="#E0E0E0"
                     android:textSize="10sp" />
+
+                <Button
+                    android:id="@+id/btnExitEditMode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="28dp"
+                    android:backgroundTint="#FFFFFF"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="64dp"
+                    android:paddingHorizontal="10dp"
+                    android:text="Done"
+                    android:textAllCaps="false"
+                    android:textColor="#0A0A0A"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Grade Organizada de 8 Botões Editáveis -->
-            <GridLayout
+            <!-- UPPER RIGHT: 4x2 Button Grid + Small Vertical Progressive Brake Slider -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:columnCount="4"
-                android:rowCount="2">
+                android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btnB1"
+                <!-- 8 Flight Buttons (Single Click by default; configurable in Edit Controls mode) -->
+                <GridLayout
                     android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_rowWeight="1"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="3dp"
-                    android:backgroundTint="#222222"
-                    android:padding="2dp"
-                    android:text="GATILHO"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:columnCount="4"
+                    android:rowCount="2">
 
-                <Button
-                    android:id="@+id/btnB2"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_rowWeight="1"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="3dp"
-                    android:backgroundTint="#222222"
-                    android:padding="2dp"
-                    android:text="FREIOS"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
+                    <Button
+                        android:id="@+id/btnB1"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="2.5dp"
+                        android:backgroundTint="#222222"
+                        android:padding="2dp"
+                        android:text="BRAKE"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp" />
 
-                <Button
-                    android:id="@+id/btnB3"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_rowWeight="1"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="3dp"
-                    android:backgroundTint="#222222"
-                    android:padding="2dp"
-                    android:text="FLAPS -"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
+                    <Button
+                        android:id="@+id/btnB2"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="2.5dp"
+                        android:backgroundTint="#222222"
+                        android:padding="2dp"
+                        android:text="PRK BRK"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp" />
 
-                <Button
-                    android:id="@+id/btnB4"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_rowWeight="1"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="3dp"
-                    android:backgroundTint="#222222"
-                    android:padding="2dp"
-                    android:text="FLAPS +"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
+                    <Button
+                        android:id="@+id/btnB3"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="2.5dp"
+                        android:backgroundTint="#222222"
+                        android:padding="2dp"
+                        android:text="FLAPS -"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp" />
 
-                <Button
-                    android:id="@+id/btnB5"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_rowWeight="1"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="3dp"
-                    android:backgroundTint="#222222"
-                    android:padding="2dp"
-                    android:text="TREM POUSO"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
+                    <Button
+                        android:id="@+id/btnB4"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="2.5dp"
+                        android:backgroundTint="#222222"
+                        android:padding="2dp"
+                        android:text="FLAPS +"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp" />
 
-                <Button
-                    android:id="@+id/btnB6"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_rowWeight="1"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="3dp"
-                    android:backgroundTint="#222222"
-                    android:padding="2dp"
-                    android:text="SPOILER"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
+                    <Button
+                        android:id="@+id/btnB5"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="2.5dp"
+                        android:backgroundTint="#222222"
+                        android:padding="2dp"
+                        android:text="GEAR"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp" />
 
-                <Button
-                    android:id="@+id/btnB7"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_rowWeight="1"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="3dp"
-                    android:backgroundTint="#222222"
-                    android:padding="2dp"
-                    android:text="PILOTO AUTO"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
+                    <Button
+                        android:id="@+id/btnB6"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="2.5dp"
+                        android:backgroundTint="#222222"
+                        android:padding="2dp"
+                        android:text="SPOILER"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp" />
 
-                <Button
-                    android:id="@+id/btnB8"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_rowWeight="1"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="3dp"
-                    android:backgroundTint="#222222"
-                    android:padding="2dp"
-                    android:text="CÂMERA"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp" />
-            </GridLayout>
+                    <Button
+                        android:id="@+id/btnB7"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="2.5dp"
+                        android:backgroundTint="#222222"
+                        android:padding="2dp"
+                        android:text="AUTOPILOT"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp" />
 
-            <!-- LADO DIREITO INFERIOR: Slider Grosso do Rudder (Pedais) + Alternador Auto-Centro / Livre -->
+                    <Button
+                        android:id="@+id/btnB8"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_rowWeight="1"
+                        android:layout_columnWeight="1"
+                        android:layout_margin="2.5dp"
+                        android:backgroundTint="#222222"
+                        android:padding="2dp"
+                        android:text="VIEW"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp" />
+                </GridLayout>
+
+                <!-- Small Vertical Progressive Brake Slider (Pull down from 0% to 100%) -->
+                <LinearLayout
+                    android:layout_width="54dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="5dp"
+                    android:background="#101010"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:padding="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="BRAKE"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="9sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/txtBrakeValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="2dp"
+                        android:text="0%"
+                        android:textColor="@color/text_primary"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+
+                    <com.flightjoy.android.ui.ThickSliderView
+                        android:id="@+id/sliderBrake"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- BOTTOM RIGHT: Thick Horizontal Rudder Slider + Auto-Center / Free Mode Toggle -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="5dp"
                 android:orientation="vertical">
 
                 <LinearLayout
@@ -329,7 +391,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="RUDDER (PEDAIS)"
+                        android:text="RUDDER"
                         android:textColor="@color/text_secondary"
                         android:textSize="10sp"
                         android:textStyle="bold" />
@@ -340,12 +402,11 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:layout_weight="1"
-                        android:text="0%"
+                        android:text="+0%"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
-                    <!-- Botão que alterna se o Rudder volta ao centro ao soltar ou fica livre -->
                     <Button
                         android:id="@+id/btnRudderMode"
                         android:layout_width="wrap_content"
@@ -355,7 +416,7 @@
                         android:insetBottom="0dp"
                         android:minWidth="96dp"
                         android:paddingHorizontal="8dp"
-                        android:text="Auto-Centro: ON"
+                        android:text="Auto-Center: ON"
                         android:textAllCaps="false"
                         android:textColor="@color/text_primary"
                         android:textSize="10sp"
@@ -365,52 +426,237 @@
                 <com.flightjoy.android.ui.ThickSliderView
                     android:id="@+id/sliderRudder"
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="46dp"
                     android:layout_marginTop="2dp" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
-    <!-- JANELA MODAL NA TELA (Aberta pelo botão ☰ e fechada pelo X) -->
+    <!-- 1. MENU HUB OVERLAY (Opened by ☰ button: 3 Square Option Cards) -->
     <FrameLayout
-        android:id="@+id/menuOverlay"
+        android:id="@+id/hubOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#CC000000"
         android:clickable="true"
         android:focusable="true"
-        android:padding="18dp"
         android:visibility="gone">
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="450dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
             android:background="#141414"
             android:orientation="vertical"
-            android:padding="14dp">
+            android:padding="18dp">
 
-            <!-- Cabeçalho da Janela com Botão X -->
+            <!-- Hub Header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingBottom="8dp">
+                android:paddingBottom="14dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="MENU — CONEXÃO, SENSIBILIDADE E MAPEAMENTO"
+                    android:text="MENU"
                     android:textColor="@color/text_primary"
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <Button
-                    android:id="@+id/btnCloseMenu"
-                    android:layout_width="40dp"
-                    android:layout_height="36dp"
-                    android:backgroundTint="#2A2A2A"
+                    android:id="@+id/btnCloseHub"
+                    android:layout_width="38dp"
+                    android:layout_height="34dp"
+                    android:backgroundTint="#262626"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:padding="0dp"
+                    android:text="✕"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 3 Square Option Cards -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <!-- Square 1: Connection -->
+                <LinearLayout
+                    android:id="@+id/cardMenuConnection"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="#1F1F1F"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="10dp">
+
+                    <TextView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="#2C2C2C"
+                        android:gravity="center"
+                        android:text="⇄"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="Connection"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:gravity="center"
+                        android:text="IP, Port &amp; Find PC"
+                        android:textColor="#8A8A8A"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <!-- Square 2: Settings -->
+                <LinearLayout
+                    android:id="@+id/cardMenuSettings"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_marginHorizontal="4dp"
+                    android:layout_weight="1"
+                    android:background="#1F1F1F"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="10dp">
+
+                    <TextView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="#2C2C2C"
+                        android:gravity="center"
+                        android:text="⚙"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="Settings"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:gravity="center"
+                        android:text="Sensitivity &amp; Axes"
+                        android:textColor="#8A8A8A"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <!-- Square 3: Edit Controls -->
+                <LinearLayout
+                    android:id="@+id/cardMenuEditControls"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="#1F1F1F"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="10dp">
+
+                    <TextView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="#2C2C2C"
+                        android:gravity="center"
+                        android:text="✎"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="Edit Controls"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:gravity="center"
+                        android:text="Rename &amp; Click/Hold"
+                        android:textColor="#8A8A8A"
+                        android:textSize="10sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- 2. PORTRAIT CONNECTION SCREEN (Rotates screen to Portrait when opened) -->
+    <FrameLayout
+        android:id="@+id/connectionOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#0A0A0A"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="20dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- Portrait Header -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingBottom="16dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="CONNECTION"
+                    android:textColor="@color/text_primary"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnCloseConnection"
+                    android:layout_width="42dp"
+                    android:layout_height="38dp"
+                    android:backgroundTint="#222222"
                     android:insetTop="0dp"
                     android:insetBottom="0dp"
                     android:padding="0dp"
@@ -430,106 +676,331 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
-                    <!-- Linha 1: IP, Lupa de Busca Rápida, Porta e Botão Conectar -->
+                    <!-- Status Card -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="#1E1E1E"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:padding="10dp">
+                        android:background="#141414"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:text="IP:"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                        <EditText
-                            android:id="@+id/edtServerIp"
-                            android:layout_width="145dp"
-                            android:layout_height="38dp"
-                            android:background="#0A0A0A"
-                            android:hint="192.168.1.100"
-                            android:inputType="textUri"
-                            android:paddingHorizontal="8dp"
-                            android:singleLine="true"
-                            android:textColor="@color/text_primary"
-                            android:textColorHint="#666666"
-                            android:textSize="13sp" />
-
-                        <!-- Botão de Lupa (Busca Rápida de PC na Rede) -->
-                        <Button
-                            android:id="@+id/btnSearchPc"
-                            android:layout_width="44dp"
-                            android:layout_height="38dp"
-                            android:layout_marginStart="6dp"
-                            android:layout_marginEnd="12dp"
-                            android:backgroundTint="#303030"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
-                            android:padding="0dp"
-                            android:text="🔍"
-                            android:textColor="@color/text_primary"
-                            android:textSize="15sp" />
+                            android:text="STATUS"
+                            android:textColor="#8A8A8A"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:id="@+id/txtConnectionOverlayStatus"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:text="Porta:"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                        <EditText
-                            android:id="@+id/edtServerPort"
-                            android:layout_width="72dp"
-                            android:layout_height="38dp"
-                            android:layout_marginEnd="12dp"
-                            android:background="#0A0A0A"
-                            android:inputType="number"
-                            android:paddingHorizontal="8dp"
-                            android:singleLine="true"
-                            android:text="49152"
-                            android:textColor="@color/text_primary"
-                            android:textSize="13sp" />
-
-                        <Button
-                            android:id="@+id/btnConnect"
-                            android:layout_width="0dp"
-                            android:layout_height="40dp"
-                            android:layout_weight="1"
-                            android:backgroundTint="#FFFFFF"
-                            android:text="Conectar"
-                            android:textAllCaps="false"
-                            android:textColor="#0A0A0A"
-                            android:textSize="13sp"
+                            android:layout_marginTop="4dp"
+                            android:text="Disconnected"
+                            android:textColor="#FFFFFF"
+                            android:textSize="15sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <!-- Seção 2: Mapeamento de Eixos vJoy (Exclusivo no Celular) -->
+                    <!-- PC Server IP & Auto-Discovery Card -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:background="#1E1E1E"
+                        android:layout_marginTop="14dp"
+                        android:background="#141414"
                         android:orientation="vertical"
-                        android:padding="10dp">
+                        android:padding="16dp">
 
                         <TextView
-                            android:layout_width="match_parent"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="MAPEAMENTO DE EIXOS NO VJOY (PC)"
-                            android:textColor="@color/text_secondary"
+                            android:text="PC IP ADDRESS (WI-FI)"
+                            android:textColor="#8A8A8A"
                             android:textSize="11sp"
                             android:textStyle="bold" />
 
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <EditText
+                                android:id="@+id/edtServerIp"
+                                android:layout_width="0dp"
+                                android:layout_height="44dp"
+                                android:layout_weight="1"
+                                android:background="#0A0A0A"
+                                android:hint="192.168.1.100"
+                                android:inputType="textUri"
+                                android:paddingHorizontal="12dp"
+                                android:singleLine="true"
+                                android:textColor="@color/text_primary"
+                                android:textColorHint="#666666"
+                                android:textSize="14sp" />
+
+                            <Button
+                                android:id="@+id/btnSearchPc"
+                                android:layout_width="50dp"
+                                android:layout_height="44dp"
+                                android:layout_marginStart="8dp"
+                                android:backgroundTint="#2A2A2A"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:padding="0dp"
+                                android:text="🔍"
+                                android:textColor="@color/text_primary"
+                                android:textSize="16sp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
+                            android:text="Tap 🔍 to automatically find your PC running FlightJoy on the same Wi-Fi."
+                            android:textColor="#757575"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="UDP PORT"
+                            android:textColor="#8A8A8A"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/edtServerPort"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_marginTop="8dp"
+                            android:background="#0A0A0A"
+                            android:inputType="number"
+                            android:paddingHorizontal="12dp"
+                            android:singleLine="true"
+                            android:text="49152"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- Connect / Disconnect Primary Button -->
+                    <Button
+                        android:id="@+id/btnConnect"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="18dp"
+                        android:backgroundTint="#FFFFFF"
+                        android:text="Connect"
+                        android:textAllCaps="false"
+                        android:textColor="#0A0A0A"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </ScrollView>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- 3. PORTRAIT SETTINGS SCREEN (Rotates screen to Portrait when opened) -->
+    <FrameLayout
+        android:id="@+id/settingsOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#0A0A0A"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="20dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- Portrait Header -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingBottom="16dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="SETTINGS"
+                    android:textColor="@color/text_primary"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnCloseSettings"
+                    android:layout_width="42dp"
+                    android:layout_height="38dp"
+                    android:backgroundTint="#222222"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:padding="0dp"
+                    android:text="✕"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Section 1: Gyroscope Sensitivity & Response -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="#141414"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="GYROSCOPE &amp; RESPONSE"
+                            android:textColor="#8A8A8A"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/txtSensitivityLabel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="Gyro Sensitivity: 1.00x"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekSensitivity"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:max="250"
+                            android:progress="100" />
+
+                        <TextView
+                            android:id="@+id/txtDeadzoneLabel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="Center Deadzone: 3%"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekDeadzone"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:max="30"
+                            android:progress="3" />
+
+                        <TextView
+                            android:id="@+id/txtMaxAngleLabel"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="Max Tilt Angle: 45°"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+
+                        <SeekBar
+                            android:id="@+id/seekMaxAngle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:max="80"
+                            android:progress="45" />
+                    </LinearLayout>
+
+                    <!-- Section 2: Axis Inversion & Gyro Options -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:background="#141414"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="AXIS INVERSION &amp; OPTIONS"
+                            android:textColor="#8A8A8A"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <CheckBox
+                            android:id="@+id/chkInvertPitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="Invert Pitch Axis"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+
+                        <CheckBox
+                            android:id="@+id/chkInvertRoll"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Invert Roll Axis"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+
+                        <CheckBox
+                            android:id="@+id/chkInvertYaw"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Invert Rudder Axis"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+
+                        <CheckBox
+                            android:id="@+id/chkEnableYaw"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Use Gyroscope on Yaw (Rudder)"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <!-- Section 3: vJoy Axis Mapping (PC) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:background="#141414"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="VJOY AXIS MAPPING (PC)"
+                            android:textColor="#8A8A8A"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <!-- Row 1: Pitch & Roll -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
                             android:orientation="horizontal">
 
                             <LinearLayout
@@ -542,11 +1013,11 @@
                                     android:layout_height="wrap_content"
                                     android:text="Pitch"
                                     android:textColor="@color/text_secondary"
-                                    android:textSize="11sp" />
+                                    android:textSize="12sp" />
                                 <Spinner
                                     android:id="@+id/spnMapPitch"
                                     android:layout_width="match_parent"
-                                    android:layout_height="36dp" />
+                                    android:layout_height="40dp" />
                             </LinearLayout>
 
                             <LinearLayout
@@ -559,12 +1030,20 @@
                                     android:layout_height="wrap_content"
                                     android:text="Roll"
                                     android:textColor="@color/text_secondary"
-                                    android:textSize="11sp" />
+                                    android:textSize="12sp" />
                                 <Spinner
                                     android:id="@+id/spnMapRoll"
                                     android:layout_width="match_parent"
-                                    android:layout_height="36dp" />
+                                    android:layout_height="40dp" />
                             </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Row 2: Rudder & Throttle -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="horizontal">
 
                             <LinearLayout
                                 android:layout_width="0dp"
@@ -576,11 +1055,11 @@
                                     android:layout_height="wrap_content"
                                     android:text="Rudder"
                                     android:textColor="@color/text_secondary"
-                                    android:textSize="11sp" />
+                                    android:textSize="12sp" />
                                 <Spinner
                                     android:id="@+id/spnMapRudder"
                                     android:layout_width="match_parent"
-                                    android:layout_height="36dp" />
+                                    android:layout_height="40dp" />
                             </LinearLayout>
 
                             <LinearLayout
@@ -593,11 +1072,36 @@
                                     android:layout_height="wrap_content"
                                     android:text="Throttle"
                                     android:textColor="@color/text_secondary"
-                                    android:textSize="11sp" />
+                                    android:textSize="12sp" />
                                 <Spinner
                                     android:id="@+id/spnMapThrottle"
                                     android:layout_width="match_parent"
-                                    android:layout_height="36dp" />
+                                    android:layout_height="40dp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Row 3: Reverse & Progressive Brake Slider -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Reverse"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="12sp" />
+                                <Spinner
+                                    android:id="@+id/spnMapReverse"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="40dp" />
                             </LinearLayout>
 
                             <LinearLayout
@@ -608,134 +1112,15 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Reverso"
+                                    android:text="Brake Slider"
                                     android:textColor="@color/text_secondary"
-                                    android:textSize="11sp" />
+                                    android:textSize="12sp" />
                                 <Spinner
-                                    android:id="@+id/spnMapReverse"
+                                    android:id="@+id/spnMapBrake"
                                     android:layout_width="match_parent"
-                                    android:layout_height="36dp" />
+                                    android:layout_height="40dp" />
                             </LinearLayout>
                         </LinearLayout>
-                    </LinearLayout>
-
-                    <!-- Seção 3: Sensibilidade, Zona Morta e Opções -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:background="#1E1E1E"
-                        android:orientation="vertical"
-                        android:padding="10dp">
-
-                        <TextView
-                            android:id="@+id/txtSensitivityLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Sensibilidade do Giroscópio: 1.00x"
-                            android:textColor="@color/text_primary"
-                            android:textSize="12sp" />
-
-                        <SeekBar
-                            android:id="@+id/seekSensitivity"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="250"
-                            android:progress="100" />
-
-                        <TextView
-                            android:id="@+id/txtDeadzoneLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Zona Morta Central: 3%"
-                            android:textColor="@color/text_primary"
-                            android:textSize="12sp" />
-
-                        <SeekBar
-                            android:id="@+id/seekDeadzone"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="30"
-                            android:progress="3" />
-
-                        <TextView
-                            android:id="@+id/txtMaxAngleLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Ângulo Máximo de Inclinação: 45°"
-                            android:textColor="@color/text_primary"
-                            android:textSize="12sp" />
-
-                        <SeekBar
-                            android:id="@+id/seekMaxAngle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="80"
-                            android:progress="45" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:orientation="horizontal">
-
-                            <CheckBox
-                                android:id="@+id/chkInvertPitch"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="Inverter Pitch"
-                                android:textColor="@color/text_primary"
-                                android:textSize="12sp" />
-
-                            <CheckBox
-                                android:id="@+id/chkInvertRoll"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="Inverter Roll"
-                                android:textColor="@color/text_primary"
-                                android:textSize="12sp" />
-
-                            <CheckBox
-                                android:id="@+id/chkInvertYaw"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="Inverter Rudder"
-                                android:textColor="@color/text_primary"
-                                android:textSize="12sp" />
-
-                            <CheckBox
-                                android:id="@+id/chkEnableYaw"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="Giroscópio no Yaw"
-                                android:textColor="@color/text_primary"
-                                android:textSize="12sp" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <!-- Rodapé do Menu: Restaurar Botões Padrão -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:gravity="end"
-                        android:orientation="horizontal">
-
-                        <Button
-                            android:id="@+id/btnResetButtons"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:backgroundTint="#2A2A2A"
-                            android:text="Restaurar Botões Padrão"
-                            android:textAllCaps="false"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
                     </LinearLayout>
                 </LinearLayout>
             </ScrollView>

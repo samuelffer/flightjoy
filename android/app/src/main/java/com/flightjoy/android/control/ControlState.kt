@@ -3,7 +3,7 @@ package com.flightjoy.android.control
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Mantém o estado atual dos controles do celular de forma thread-safe.
+ * Thread-safe holder for all current mobile flight control states.
  */
 class ControlState {
     @Volatile
@@ -19,10 +19,13 @@ class ControlState {
     var rudderSlider: Float = 0.0f
 
     @Volatile
-    var throttle: Float = -1.0f // -1.0f = 0% potência; +1.0f = 100% potência
+    var throttle: Float = -1.0f // -1.0f = 0% throttle; +1.0f = 100% throttle
 
     @Volatile
-    var reverseThrottle: Float = -1.0f // -1.0f = 0% reverso; +1.0f = 100% reverso
+    var reverseThrottle: Float = -1.0f // -1.0f = 0% reverse; +1.0f = 100% reverse
+
+    @Volatile
+    var brakeSlider: Float = -1.0f // -1.0f = 0% brake; +1.0f = 100% brake
 
     val combinedRudder: Float
         get() = (rudderSlider + yaw).coerceIn(-1.0f, 1.0f)
@@ -30,7 +33,7 @@ class ControlState {
     private val buttonsMask = AtomicInteger(0)
 
     /**
-     * Ativa ou desativa diretamente o botão vJoy alvo (1..32).
+     * Sets or clears a target vJoy button (1..32).
      */
     fun setButtonPressed(vjoyButtonOneBased: Int, pressed: Boolean) {
         if (vjoyButtonOneBased !in 1..32) return

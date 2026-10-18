@@ -10,7 +10,8 @@ public enum SourceAxis
     Roll = 1,
     Yaw = 2,
     Throttle = 3,
-    Aux = 4
+    Aux = 4,
+    Brake = 5
 }
 
 public sealed class AxisMappingConfig
@@ -22,16 +23,16 @@ public sealed class AxisMappingConfig
 
     public bool Invert { get; set; }
 
-    /// <summary>Multiplicador de sensibilidade (0.1 a 3.0)</summary>
+    /// <summary>Sensitivity multiplier (0.1 to 3.0)</summary>
     public double Sensitivity { get; set; } = 1.0;
 
-    /// <summary>Zona morta central (0.0 a 0.40)</summary>
+    /// <summary>Center deadzone (0.0 to 0.40)</summary>
     public double Deadzone { get; set; } = 0.03;
 
-    /// <summary>Curva exponencial (0.0 = linear, 1.0 = cúbica suave no centro)</summary>
+    /// <summary>Exponential curve (0.0 = linear, 1.0 = cubic smooth center)</summary>
     public double Exponential { get; set; } = 0.20;
 
-    /// <summary>Fator de suavização passa-baixa (0.0 = sem filtro, 0.85 = muito suave)</summary>
+    /// <summary>Low-pass smoothing factor (0.0 = unfiltered, 0.85 = very smooth)</summary>
     public double Smoothing { get; set; } = 0.15;
 
     public AxisMappingConfig Clone() => new()

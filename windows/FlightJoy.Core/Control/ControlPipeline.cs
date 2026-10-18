@@ -5,8 +5,8 @@ using FlightJoy.Core.VJoy;
 namespace FlightJoy.Core.Control;
 
 /// <summary>
-/// Pipeline central que transforma os pacotes enviados pelo aplicativo Android
-/// em entradas de eixos e botões vJoy, respeitando o mapeamento definido no celular.
+/// Central pipeline that transforms packets sent by the Android app
+/// into vJoy axis and button inputs, respecting the mapping configured on the phone.
 /// </summary>
 public sealed class ControlPipeline
 {
@@ -75,7 +75,8 @@ public sealed class ControlPipeline
                 [SourceAxis.Roll] = _lastRawRoll,
                 [SourceAxis.Yaw] = _lastRawYaw,
                 [SourceAxis.Throttle] = packet.ThrottleNormalized,
-                [SourceAxis.Aux] = packet.AuxNormalized
+                [SourceAxis.Aux] = packet.AuxNormalized,
+                [SourceAxis.Brake] = packet.BrakeNormalized
             };
 
             var processedSource = new Dictionary<SourceAxis, double>();
@@ -89,24 +90,26 @@ public sealed class ControlPipeline
 
             if (hasPhoneAxisMapping)
             {
-                // Mapeamento e curvas definidos diretamente pelo aplicativo Android
                 double pitchVal = Math.Clamp(_lastRawPitch - _calibration.PitchOffset, -1.0, 1.0);
                 double rollVal = Math.Clamp(_lastRawRoll - _calibration.RollOffset, -1.0, 1.0);
                 double rudderVal = Math.Clamp(_lastRawYaw - _calibration.YawOffset, -1.0, 1.0);
                 double throttleVal = packet.ThrottleNormalized;
                 double reverseVal = packet.AuxNormalized;
+                double brakeVal = packet.BrakeNormalized;
 
                 processedSource[SourceAxis.Pitch] = pitchVal;
                 processedSource[SourceAxis.Roll] = rollVal;
                 processedSource[SourceAxis.Yaw] = rudderVal;
                 processedSource[SourceAxis.Throttle] = throttleVal;
                 processedSource[SourceAxis.Aux] = reverseVal;
+                processedSource[SourceAxis.Brake] = brakeVal;
 
                 VJoyAxisUsage pitchTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapPitch, VJoyAxisUsage.Y);
                 VJoyAxisUsage rollTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapRoll, VJoyAxisUsage.X);
                 VJoyAxisUsage rudderTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapRudder, VJoyAxisUsage.RZ);
                 VJoyAxisUsage throttleTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapThrottle, VJoyAxisUsage.Z);
                 VJoyAxisUsage reverseTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapReverse, VJoyAxisUsage.SL0);
+                VJoyAxisUsage brakeTarget = FlightJoyPacket.ParseAxisOrDefault(packet.MapBrake, VJoyAxisUsage.SL1);
 
                 if (pitchTarget != VJoyAxisUsage.None)
                 {
@@ -132,6 +135,11 @@ public sealed class ControlPipeline
                 {
                     targetVJoyAxes[reverseTarget] = reverseVal;
                     feeder.SetNormalizedAxis(reverseTarget, reverseVal);
+                }
+                if (brakeTarget != VJoyAxisUsage.None)
+                {
+                    targetVJoyAxes[brakeTarget] = brakeVal;
+                    feeder.SetNormalizedAxis(brakeTarget, brakeVal);
                 }
             }
             else
@@ -169,7 +177,6 @@ public sealed class ControlPipeline
                 }
             }
 
-            // Os 32 bits de ButtonsMask representam diretamente os botões vJoy 1..32 mapeados pelo celular
             var phoneButtons = new Dictionary<int, bool>();
             var targetButtons = new Dictionary<int, bool>();
 
