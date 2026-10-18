@@ -7,10 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <AssemblyName>FlightJoy.Windows</AssemblyName>
+    <AssemblyName>FlightJoy</AssemblyName>
     <RootNamespace>FlightJoy.Windows</RootNamespace>
     <Version>0.1.0</Version>
-    <Title>FlightJoy — Cliente Windows vJoy</Title>
+    <Title>FlightJoy</Title>
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 

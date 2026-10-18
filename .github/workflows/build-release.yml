@@ -126,7 +126,7 @@ jobs:
         run: |
           gradle -p android assembleDebug -x test -x lint --parallel --build-cache
           mkdir -p dist-android
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist-android/FlightJoy-Android-debug.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist-android/FlightJoy.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -183,6 +183,12 @@ jobs:
           mkdir -p package_root/Android package_root/Windows
           if [ -f "Zips/FlightJoy.zip" ]; then
             unzip -q -o "Zips/FlightJoy.zip" -d package_root/ || true
+          fi
+          if [ "${{ needs.detect-changes.outputs.build_android }}" = "true" ]; then
+            rm -rf package_root/Android/*
+          fi
+          if [ "${{ needs.detect-changes.outputs.build_windows }}" = "true" ]; then
+            rm -rf package_root/Windows/*
           fi
 
       - if: needs.detect-changes.outputs.build_android == 'true'
