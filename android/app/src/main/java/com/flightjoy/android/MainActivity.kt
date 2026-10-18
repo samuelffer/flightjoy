@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.pm.ActivityInfo
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -12,13 +13,13 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.RadioButton
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
@@ -30,6 +31,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.flightjoy.android.config.AppPreferences
+import com.flightjoy.android.config.ButtonBehaviorMode
 import com.flightjoy.android.config.FlightClientConfig
 import com.flightjoy.android.config.PhoneButtonConfig
 import com.flightjoy.android.control.ControlState
@@ -51,12 +53,14 @@ class MainActivity : AppCompatActivity() {
     private val logger = AppLogger()
     private val controlState = ControlState()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val easeInterpolator = DecelerateInterpolator(1.6f)
 
     private lateinit var sensorController: SensorController
     private lateinit var telemetryClient: UdpTelemetryClient
 
     private var isReverseThrottleMode: Boolean = false
     private var isEditControlsMode: Boolean = false
+    private var lastConnectionState: ClientConnectionState = ClientConnectionState.DISCONNECTED
 
     // Cockpit Views
     private lateinit var btnMenu: Button
@@ -65,11 +69,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var virtualStickView: VirtualStickView
     private lateinit var txtOrientationValues: TextView
 
-    private lateinit var txtThrottleTitle: TextView
     private lateinit var sliderThrottle: ThickSliderView
     private lateinit var txtThrottleValue: TextView
     private lateinit var btnReverseSwitch: AppCompatButton
 
+    private lateinit var brakeSliderContainer: LinearLayout
     private lateinit var sliderBrake: ThickSliderView
     private lateinit var txtBrakeValue: TextView
 
@@ -84,15 +88,21 @@ class MainActivity : AppCompatActivity() {
 
     private val cockpitButtons = mutableMapOf<Int, Button>()
 
-    // 1. Menu Hub Overlay (3 Square Cards)
+    // 1. Menu Hub Overlay (4 Rounded Square Cards)
     private lateinit var hubOverlay: FrameLayout
+    private lateinit var hubModalCard: LinearLayout
     private lateinit var btnCloseHub: Button
+    private lateinit var cardMenuQuickConnect: LinearLayout
+    private lateinit var txtQuickConnectIcon: TextView
+    private lateinit var txtQuickConnectTitle: TextView
+    private lateinit var txtQuickConnectSub: TextView
     private lateinit var cardMenuConnection: LinearLayout
     private lateinit var cardMenuSettings: LinearLayout
     private lateinit var cardMenuEditControls: LinearLayout
 
     // 2. Portrait Connection Screen
     private lateinit var connectionOverlay: FrameLayout
+    private lateinit var connectionContentCard: LinearLayout
     private lateinit var btnCloseConnection: Button
     private lateinit var txtConnectionOverlayStatus: TextView
     private lateinit var edtServerIp: EditText
@@ -102,6 +112,7 @@ class MainActivity : AppCompatActivity() {
 
     // 3. Portrait Settings Screen
     private lateinit var settingsOverlay: FrameLayout
+    private lateinit var settingsContentCard: LinearLayout
     private lateinit var btnCloseSettings: Button
     private lateinit var spnMapPitch: Spinner
     private lateinit var spnMapRoll: Spinner
@@ -117,6 +128,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var txtMaxAngleLabel: TextView
     private lateinit var seekMaxAngle: SeekBar
 
+    private lateinit var chkShowBrakeSlider: CheckBox
     private lateinit var chkInvertPitch: CheckBox
     private lateinit var chkInvertRoll: CheckBox
     private lateinit var chkInvertYaw: CheckBox
@@ -164,6 +176,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnCalibrate.setOnClickListener {
+            animatePress(btnCalibrate)
             sensorController.calibrateCenter()
             Toast.makeText(this, "Gyroscope calibrated!", Toast.LENGTH_SHORT).show()
         }
@@ -207,6 +220,61 @@ class MainActivity : AppCompatActivity() {
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
+    private fun animateShowOverlay(overlay: View, card: View) {
+        overlay.alpha = 0f
+        overlay.visibility = View.VISIBLE
+        card.scaleX = 0.92f
+        card.scaleY = 0.92f
+        overlay.animate()
+            .alpha(1f)
+            .setDuration(170L)
+            .setInterpolator(easeInterpolator)
+            .start()
+        card.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(190L)
+            .setInterpolator(easeInterpolator)
+            .start()
+    }
+
+    private fun animateHideOverlay(overlay: View, card: View, onEnd: (() -> Unit)? = null) {
+        card.animate()
+            .scaleX(0.94f)
+            .scaleY(0.94f)
+            .setDuration(130L)
+            .setInterpolator(easeInterpolator)
+            .start()
+        overlay.animate()
+            .alpha(0f)
+            .setDuration(140L)
+            .setInterpolator(easeInterpolator)
+            .withEndAction {
+                overlay.visibility = View.GONE
+                overlay.alpha = 1f
+                card.scaleX = 1f
+                card.scaleY = 1f
+                onEnd?.invoke()
+            }
+            .start()
+    }
+
+    private fun animatePress(view: View) {
+        view.animate()
+            .scaleX(0.94f)
+            .scaleY(0.94f)
+            .setDuration(65L)
+            .withEndAction {
+                view.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(110L)
+                    .setInterpolator(easeInterpolator)
+                    .start()
+            }
+            .start()
+    }
+
     private fun bindViews() {
         btnMenu = findViewById(R.id.btnMenu)
         btnCalibrate = findViewById(R.id.btnCalibrate)
@@ -214,11 +282,11 @@ class MainActivity : AppCompatActivity() {
         virtualStickView = findViewById(R.id.virtualStickView)
         txtOrientationValues = findViewById(R.id.txtOrientationValues)
 
-        txtThrottleTitle = findViewById(R.id.txtThrottleTitle)
         sliderThrottle = findViewById(R.id.sliderThrottle)
         txtThrottleValue = findViewById(R.id.txtThrottleValue)
         btnReverseSwitch = findViewById(R.id.btnReverseSwitch)
 
+        brakeSliderContainer = findViewById(R.id.brakeSliderContainer)
         sliderBrake = findViewById(R.id.sliderBrake)
         txtBrakeValue = findViewById(R.id.txtBrakeValue)
 
@@ -240,12 +308,18 @@ class MainActivity : AppCompatActivity() {
         cockpitButtons[8] = findViewById(R.id.btnB8)
 
         hubOverlay = findViewById(R.id.hubOverlay)
+        hubModalCard = findViewById(R.id.hubModalCard)
         btnCloseHub = findViewById(R.id.btnCloseHub)
+        cardMenuQuickConnect = findViewById(R.id.cardMenuQuickConnect)
+        txtQuickConnectIcon = findViewById(R.id.txtQuickConnectIcon)
+        txtQuickConnectTitle = findViewById(R.id.txtQuickConnectTitle)
+        txtQuickConnectSub = findViewById(R.id.txtQuickConnectSub)
         cardMenuConnection = findViewById(R.id.cardMenuConnection)
         cardMenuSettings = findViewById(R.id.cardMenuSettings)
         cardMenuEditControls = findViewById(R.id.cardMenuEditControls)
 
         connectionOverlay = findViewById(R.id.connectionOverlay)
+        connectionContentCard = findViewById(R.id.connectionContentCard)
         btnCloseConnection = findViewById(R.id.btnCloseConnection)
         txtConnectionOverlayStatus = findViewById(R.id.txtConnectionOverlayStatus)
         edtServerIp = findViewById(R.id.edtServerIp)
@@ -254,6 +328,7 @@ class MainActivity : AppCompatActivity() {
         btnConnect = findViewById(R.id.btnConnect)
 
         settingsOverlay = findViewById(R.id.settingsOverlay)
+        settingsContentCard = findViewById(R.id.settingsContentCard)
         btnCloseSettings = findViewById(R.id.btnCloseSettings)
         spnMapPitch = findViewById(R.id.spnMapPitch)
         spnMapRoll = findViewById(R.id.spnMapRoll)
@@ -269,6 +344,7 @@ class MainActivity : AppCompatActivity() {
         txtMaxAngleLabel = findViewById(R.id.txtMaxAngleLabel)
         seekMaxAngle = findViewById(R.id.seekMaxAngle)
 
+        chkShowBrakeSlider = findViewById(R.id.chkShowBrakeSlider)
         chkInvertPitch = findViewById(R.id.chkInvertPitch)
         chkInvertRoll = findViewById(R.id.chkInvertRoll)
         chkInvertYaw = findViewById(R.id.chkInvertYaw)
@@ -276,7 +352,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupThickSlidersAndReverseSwitch() {
-        // Left Slider: Throttle / Reverse (Vertical, 1:1 tracking on the square handle)
+        // Left Slider (Vertical, 1:1 tracking on the square handle, percentage only)
         sliderThrottle.apply {
             isVertical = true
             isBipolarCenter = false
@@ -300,6 +376,7 @@ class MainActivity : AppCompatActivity() {
         // Reverse Switch Button (top-to-bottom 0% -> 100% when active)
         updateReverseSwitchVisual()
         btnReverseSwitch.setOnClickListener {
+            animatePress(btnReverseSwitch)
             isReverseThrottleMode = !isReverseThrottleMode
             sliderThrottle.isInvertedVertical = isReverseThrottleMode
             controlState.throttle = -1.0f
@@ -308,7 +385,8 @@ class MainActivity : AppCompatActivity() {
             updateReverseSwitchVisual()
         }
 
-        // Right Small Vertical Progressive Brake Slider (Starts at top 0%, pull down freely to 100%)
+        // Optional Vertical Progressive Brake Slider (Starts at top 0%, pull down freely to 100%)
+        updateBrakeSliderVisibility()
         sliderBrake.apply {
             isVertical = true
             isBipolarCenter = false
@@ -322,7 +400,7 @@ class MainActivity : AppCompatActivity() {
             setNormalizedValueImmediate(-1.0f)
         }
 
-        // Bottom-Right Horizontal Rudder Slider
+        // Bottom-Right Horizontal Slider
         sliderRudder.apply {
             isVertical = false
             isBipolarCenter = true
@@ -337,6 +415,7 @@ class MainActivity : AppCompatActivity() {
 
         updateRudderModeButtonVisual()
         btnRudderMode.setOnClickListener {
+            animatePress(btnRudderMode)
             config.rudderAutoCenter = !config.rudderAutoCenter
             sliderRudder.returnToCenterOnRelease = config.rudderAutoCenter
             if (config.rudderAutoCenter) {
@@ -347,19 +426,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateBrakeSliderVisibility() {
+        if (config.showBrakeSlider) {
+            brakeSliderContainer.visibility = View.VISIBLE
+        } else {
+            brakeSliderContainer.visibility = View.GONE
+            controlState.brakeSlider = -1.0f
+        }
+    }
+
     private fun updateReverseSwitchVisual() {
         if (isReverseThrottleMode) {
             btnReverseSwitch.setBackgroundResource(R.drawable.bg_reverse_switch_on)
             btnReverseSwitch.text = "REV\nON"
             btnReverseSwitch.setTextColor(Color.parseColor("#0A0A0A"))
-            txtThrottleTitle.text = "REVERSE"
-            txtThrottleTitle.setTextColor(Color.parseColor("#FFFFFF"))
         } else {
             btnReverseSwitch.setBackgroundResource(R.drawable.bg_reverse_switch_off)
             btnReverseSwitch.text = "REV\nOFF"
             btnReverseSwitch.setTextColor(Color.parseColor("#9E9E9E"))
-            txtThrottleTitle.text = "THROTTLE"
-            txtThrottleTitle.setTextColor(Color.parseColor("#9E9E9E"))
         }
     }
 
@@ -398,35 +482,41 @@ class MainActivity : AppCompatActivity() {
                 // In Edit Controls Mode: tapping any button opens the Edit Button dialog
                 if (isEditControlsMode) {
                     if (event.actionMasked == MotionEvent.ACTION_UP) {
+                        animatePress(btnView)
                         showEditButtonDialog(slotIndex)
                     }
                     return@setOnTouchListener true
                 }
 
-                // Normal Flight Mode:
-                // - Single Click (isHoldMode == false): normal tap sends a clean click pulse
-                // - Hold (isHoldMode == true): keeps pressed while holding finger down
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        if (btnCfg.isHoldMode) {
-                            controlState.setButtonPressed(btnCfg.targetVJoyButton, true)
-                            updateSingleButtonVisual(slotIndex)
-                        } else {
-                            // Single Click: pulse press for 120ms
-                            val targetBtn = btnCfg.targetVJoyButton
-                            controlState.setButtonPressed(targetBtn, true)
-                            updateSingleButtonVisual(slotIndex)
-                            mainHandler.postDelayed({
-                                controlState.setButtonPressed(targetBtn, false)
+                        animatePress(btnView)
+                        when (btnCfg.behaviorMode) {
+                            ButtonBehaviorMode.HOLD -> {
+                                controlState.setButtonPressed(btnCfg.targetVJoyButton, true)
                                 updateSingleButtonVisual(slotIndex)
-                            }, 120L)
+                            }
+                            ButtonBehaviorMode.TOGGLE -> {
+                                val nextState = !controlState.isButtonPressed(btnCfg.targetVJoyButton)
+                                controlState.setButtonPressed(btnCfg.targetVJoyButton, nextState)
+                                updateSingleButtonVisual(slotIndex)
+                            }
+                            ButtonBehaviorMode.SINGLE_CLICK -> {
+                                val targetBtn = btnCfg.targetVJoyButton
+                                controlState.setButtonPressed(targetBtn, true)
+                                updateSingleButtonVisual(slotIndex)
+                                mainHandler.postDelayed({
+                                    controlState.setButtonPressed(targetBtn, false)
+                                    updateSingleButtonVisual(slotIndex)
+                                }, 120L)
+                            }
                         }
                         true
                     }
 
                     MotionEvent.ACTION_UP,
                     MotionEvent.ACTION_CANCEL -> {
-                        if (btnCfg.isHoldMode) {
+                        if (btnCfg.behaviorMode == ButtonBehaviorMode.HOLD) {
                             controlState.setButtonPressed(btnCfg.targetVJoyButton, false)
                             updateSingleButtonVisual(slotIndex)
                         }
@@ -439,10 +529,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnExitEditMode.setOnClickListener {
+            animatePress(btnExitEditMode)
             setEditControlsMode(false)
         }
 
         btnResetButtons.setOnClickListener {
+            animatePress(btnResetButtons)
             controlState.clearAllButtons()
             config.buttons = FlightClientConfig.createDefaultButtons()
             prefs.saveConfig(config)
@@ -460,7 +552,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun getButtonConfig(slotIndex: Int): PhoneButtonConfig {
         return config.buttons.firstOrNull { it.slotIndex == slotIndex }
-            ?: PhoneButtonConfig(slotIndex, "B$slotIndex", slotIndex, false)
+            ?: PhoneButtonConfig(slotIndex, "B$slotIndex", slotIndex, ButtonBehaviorMode.SINGLE_CLICK)
     }
 
     private fun refreshAllButtonLabelsAndColors() {
@@ -474,16 +566,21 @@ class MainActivity : AppCompatActivity() {
         val cfg = getButtonConfig(slotIndex)
         val isActive = controlState.isButtonPressed(cfg.targetVJoyButton)
 
+        val modeTag = when (cfg.behaviorMode) {
+            ButtonBehaviorMode.HOLD -> "HOLD"
+            ButtonBehaviorMode.TOGGLE -> "STAY"
+            ButtonBehaviorMode.SINGLE_CLICK -> "CLICK"
+        }
+
         if (isEditControlsMode) {
-            val modeTag = if (cfg.isHoldMode) "HOLD" else "CLICK"
             btnView.text = "${cfg.label}\n[B${cfg.targetVJoyButton} • $modeTag]"
             btnView.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#333333"))
             btnView.setTextColor(Color.parseColor("#FFFFFF"))
         } else {
-            btnView.text = if (cfg.isHoldMode) {
-                "${cfg.label}\n[HOLD • B${cfg.targetVJoyButton}]"
-            } else {
+            btnView.text = if (cfg.behaviorMode == ButtonBehaviorMode.SINGLE_CLICK) {
                 "${cfg.label}\n[vJoy ${cfg.targetVJoyButton}]"
+            } else {
+                "${cfg.label}\n[$modeTag • B${cfg.targetVJoyButton}]"
             }
             if (isActive) {
                 btnView.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFFFFF"))
@@ -502,15 +599,55 @@ class MainActivity : AppCompatActivity() {
         val txtTitle = view.findViewById<TextView>(R.id.txtEditButtonTitle)
         val edtLabel = view.findViewById<EditText>(R.id.edtButtonLabel)
         val spnVJoy = view.findViewById<Spinner>(R.id.spnTargetVJoyButton)
-        val rbSingleClick = view.findViewById<RadioButton>(R.id.rbSingleClick)
-        val rbHoldMode = view.findViewById<RadioButton>(R.id.rbHoldMode)
+        val btnModeSingleClick = view.findViewById<Button>(R.id.btnModeSingleClick)
+        val btnModeHold = view.findViewById<Button>(R.id.btnModeHold)
+        val btnModeToggle = view.findViewById<Button>(R.id.btnModeToggle)
+        val btnCancel = view.findViewById<Button>(R.id.btnCancelEditButton)
+        val btnSave = view.findViewById<Button>(R.id.btnSaveEditButton)
 
         txtTitle.text = "EDIT BUTTON $slotIndex"
         edtLabel.setText(cfg.label)
-        if (cfg.isHoldMode) {
-            rbHoldMode.isChecked = true
-        } else {
-            rbSingleClick.isChecked = true
+
+        var selectedMode = cfg.behaviorMode
+
+        fun refreshModeButtons() {
+            val activeBg = ColorStateList.valueOf(Color.parseColor("#FFFFFF"))
+            val inactiveBg = ColorStateList.valueOf(Color.parseColor("#222222"))
+            val activeFg = Color.parseColor("#0A0A0A")
+            val inactiveFg = Color.parseColor("#FFFFFF")
+
+            btnModeSingleClick.backgroundTintList =
+                if (selectedMode == ButtonBehaviorMode.SINGLE_CLICK) activeBg else inactiveBg
+            btnModeSingleClick.setTextColor(
+                if (selectedMode == ButtonBehaviorMode.SINGLE_CLICK) activeFg else inactiveFg
+            )
+
+            btnModeHold.backgroundTintList =
+                if (selectedMode == ButtonBehaviorMode.HOLD) activeBg else inactiveBg
+            btnModeHold.setTextColor(
+                if (selectedMode == ButtonBehaviorMode.HOLD) activeFg else inactiveFg
+            )
+
+            btnModeToggle.backgroundTintList =
+                if (selectedMode == ButtonBehaviorMode.TOGGLE) activeBg else inactiveBg
+            btnModeToggle.setTextColor(
+                if (selectedMode == ButtonBehaviorMode.TOGGLE) activeFg else inactiveFg
+            )
+        }
+
+        refreshModeButtons()
+
+        btnModeSingleClick.setOnClickListener {
+            selectedMode = ButtonBehaviorMode.SINGLE_CLICK
+            refreshModeButtons()
+        }
+        btnModeHold.setOnClickListener {
+            selectedMode = ButtonBehaviorMode.HOLD
+            refreshModeButtons()
+        }
+        btnModeToggle.setOnClickListener {
+            selectedMode = ButtonBehaviorMode.TOGGLE
+            refreshModeButtons()
         }
 
         val vjoyOptions = (1..32).map { "vJoy Button $it" }
@@ -520,20 +657,24 @@ class MainActivity : AppCompatActivity() {
 
         val dialog = AlertDialog.Builder(this)
             .setView(view)
-            .setPositiveButton("Save") { _, _ ->
-                controlState.setButtonPressed(cfg.targetVJoyButton, false)
-                cfg.label = edtLabel.text.toString().trim().ifEmpty { "B$slotIndex" }
-                cfg.targetVJoyButton = (spnVJoy.selectedItemPosition + 1).coerceIn(1, 32)
-                cfg.isHoldMode = rbHoldMode.isChecked
-                prefs.saveConfig(config)
-                telemetryClient.activeConfig = config
-                refreshAllButtonLabelsAndColors()
-                enableImmersiveFullscreen()
-            }
-            .setNegativeButton("Cancel") { _, _ ->
-                enableImmersiveFullscreen()
-            }
             .create()
+
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnSave.setOnClickListener {
+            controlState.setButtonPressed(cfg.targetVJoyButton, false)
+            cfg.label = edtLabel.text.toString().trim().ifEmpty { "B$slotIndex" }
+            cfg.targetVJoyButton = (spnVJoy.selectedItemPosition + 1).coerceIn(1, 32)
+            cfg.behaviorMode = selectedMode
+            prefs.saveConfig(config)
+            telemetryClient.activeConfig = config
+            refreshAllButtonLabelsAndColors()
+            dialog.dismiss()
+        }
 
         dialog.setOnDismissListener {
             enableImmersiveFullscreen()
@@ -553,62 +694,88 @@ class MainActivity : AppCompatActivity() {
 
         populateMenuFromConfig()
 
-        // Open ☰ Menu Hub
+        // Open ☰ Menu Hub with Smooth Animation
         btnMenu.setOnClickListener {
+            animatePress(btnMenu)
             setEditControlsMode(false)
-            hubOverlay.visibility = View.VISIBLE
+            updateQuickConnectTileVisual()
+            animateShowOverlay(hubOverlay, hubModalCard)
         }
 
         btnCloseHub.setOnClickListener {
-            hubOverlay.visibility = View.GONE
-            enableImmersiveFullscreen()
+            animateHideOverlay(hubOverlay, hubModalCard) {
+                enableImmersiveFullscreen()
+            }
         }
 
-        // Square 1: Connection -> Switch screen to Portrait!
+        // Square 1: 1-Tap Quick Connect / Disconnect
+        cardMenuQuickConnect.setOnClickListener {
+            animatePress(cardMenuQuickConnect)
+            animateHideOverlay(hubOverlay, hubModalCard) {
+                enableImmersiveFullscreen()
+                if (telemetryClient.isConnectedOrPairing) {
+                    telemetryClient.disconnect(sendPacket = true)
+                    Toast.makeText(this, "Disconnected.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Connecting to ${config.serverIp}:${config.serverPort}...", Toast.LENGTH_SHORT).show()
+                    telemetryClient.connect(config)
+                }
+            }
+        }
+
+        // Square 2: Connection -> Switch screen to Portrait!
         cardMenuConnection.setOnClickListener {
+            animatePress(cardMenuConnection)
             populateMenuFromConfig()
             hubOverlay.visibility = View.GONE
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            connectionOverlay.visibility = View.VISIBLE
+            animateShowOverlay(connectionOverlay, connectionContentCard)
             enableImmersiveFullscreen()
         }
 
-        // Square 2: Settings -> Switch screen to Portrait!
+        // Square 3: Settings -> Switch screen to Portrait!
         cardMenuSettings.setOnClickListener {
+            animatePress(cardMenuSettings)
             populateMenuFromConfig()
             hubOverlay.visibility = View.GONE
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-            settingsOverlay.visibility = View.VISIBLE
+            animateShowOverlay(settingsOverlay, settingsContentCard)
             enableImmersiveFullscreen()
         }
 
-        // Square 3: Edit Controls -> Close Hub and enter interactive Edit Controls mode in Landscape!
+        // Square 4: Edit Controls -> Close Hub and enter interactive Edit Controls mode in Landscape!
         cardMenuEditControls.setOnClickListener {
-            hubOverlay.visibility = View.GONE
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            setEditControlsMode(true)
-            Toast.makeText(this, "Tap any button to edit its name or Click/Hold mode.", Toast.LENGTH_SHORT).show()
-            enableImmersiveFullscreen()
+            animatePress(cardMenuEditControls)
+            animateHideOverlay(hubOverlay, hubModalCard) {
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                setEditControlsMode(true)
+                Toast.makeText(this, "Tap any button to edit its name or behavior.", Toast.LENGTH_SHORT).show()
+                enableImmersiveFullscreen()
+            }
         }
 
         // Close Portrait Connection Screen -> Return to Landscape!
         btnCloseConnection.setOnClickListener {
             saveMenuIntoConfig()
-            connectionOverlay.visibility = View.GONE
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            enableImmersiveFullscreen()
+            animateHideOverlay(connectionOverlay, connectionContentCard) {
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                enableImmersiveFullscreen()
+            }
         }
 
         // Close Portrait Settings Screen -> Return to Landscape!
         btnCloseSettings.setOnClickListener {
             saveMenuIntoConfig()
-            settingsOverlay.visibility = View.GONE
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            enableImmersiveFullscreen()
+            updateBrakeSliderVisibility()
+            animateHideOverlay(settingsOverlay, settingsContentCard) {
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                enableImmersiveFullscreen()
+            }
         }
 
         // Fast LAN PC Discovery (Magnifying Glass 🔍)
         btnSearchPc.setOnClickListener {
+            animatePress(btnSearchPc)
             val port = edtServerPort.text.toString().toIntOrNull()?.coerceIn(1024, 65535) ?: 49152
             btnSearchPc.isEnabled = false
             Toast.makeText(this, "Searching for PC on Wi-Fi...", Toast.LENGTH_SHORT).show()
@@ -637,14 +804,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnConnect.setOnClickListener {
+            animatePress(btnConnect)
             if (telemetryClient.isConnectedOrPairing) {
                 telemetryClient.disconnect(sendPacket = true)
             } else {
                 saveMenuIntoConfig()
                 telemetryClient.connect(config)
-                connectionOverlay.visibility = View.GONE
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                enableImmersiveFullscreen()
+                animateHideOverlay(connectionOverlay, connectionContentCard) {
+                    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    enableImmersiveFullscreen()
+                }
             }
         }
 
@@ -658,9 +827,25 @@ class MainActivity : AppCompatActivity() {
         })
 
         seekMaxAngle.setOnSeekBarChangeListener(simpleSeekListener { p ->
-            val v = p.coerceAtLeast(20)
+            val v = p.coerceAtLeast(15)
             txtMaxAngleLabel.text = "Max Tilt Angle: ${v}°"
         })
+    }
+
+    private fun updateQuickConnectTileVisual() {
+        if (telemetryClient.isConnectedOrPairing) {
+            txtQuickConnectIcon.text = "✕"
+            txtQuickConnectIcon.setBackgroundColor(Color.parseColor("#383838"))
+            txtQuickConnectIcon.setTextColor(Color.parseColor("#FFFFFF"))
+            txtQuickConnectTitle.text = "Disconnect"
+            txtQuickConnectSub.text = "Active Session"
+        } else {
+            txtQuickConnectIcon.text = "⚡"
+            txtQuickConnectIcon.setBackgroundColor(Color.parseColor("#FFFFFF"))
+            txtQuickConnectIcon.setTextColor(Color.parseColor("#0A0A0A"))
+            txtQuickConnectTitle.text = "Connect"
+            txtQuickConnectSub.text = "${config.serverIp}"
+        }
     }
 
     private fun populateMenuFromConfig() {
@@ -681,9 +866,10 @@ class MainActivity : AppCompatActivity() {
         seekDeadzone.progress = (config.deadzone * 100).roundToInt().coerceIn(0, 30)
         txtDeadzoneLabel.text = "Center Deadzone: ${seekDeadzone.progress}%"
 
-        seekMaxAngle.progress = config.maxDeflectionDeg.roundToInt().coerceIn(20, 80)
+        seekMaxAngle.progress = config.maxDeflectionDeg.roundToInt().coerceIn(15, 80)
         txtMaxAngleLabel.text = "Max Tilt Angle: ${seekMaxAngle.progress}°"
 
+        chkShowBrakeSlider.isChecked = config.showBrakeSlider
         chkInvertPitch.isChecked = config.invertPitch
         chkInvertRoll.isChecked = config.invertRoll
         chkInvertYaw.isChecked = config.invertYaw
@@ -704,8 +890,9 @@ class MainActivity : AppCompatActivity() {
 
         config.sensitivity = seekSensitivity.progress.coerceAtLeast(25) / 100.0f
         config.deadzone = seekDeadzone.progress / 100.0f
-        config.maxDeflectionDeg = seekMaxAngle.progress.coerceAtLeast(20).toFloat()
+        config.maxDeflectionDeg = seekMaxAngle.progress.coerceAtLeast(15).toFloat()
 
+        config.showBrakeSlider = chkShowBrakeSlider.isChecked
         config.invertPitch = chkInvertPitch.isChecked
         config.invertRoll = chkInvertRoll.isChecked
         config.invertYaw = chkInvertYaw.isChecked
@@ -714,6 +901,7 @@ class MainActivity : AppCompatActivity() {
         prefs.saveConfig(config)
         sensorController.currentConfig = config
         telemetryClient.activeConfig = config
+        updateBrakeSliderVisibility()
     }
 
     private fun renderOrientation(orientation: NormalizedOrientation) {
@@ -739,8 +927,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderConnectionStatus(snapshot: ClientStatusSnapshot) {
+        val prevState = lastConnectionState
+        lastConnectionState = snapshot.state
+
         txtConnectionStatus.text = snapshot.message
         txtConnectionOverlayStatus.text = snapshot.message
+        updateQuickConnectTileVisual()
+
+        if (snapshot.state == ClientConnectionState.ERROR_OR_TIMEOUT &&
+            prevState != ClientConnectionState.ERROR_OR_TIMEOUT
+        ) {
+            Toast.makeText(
+                this,
+                "Connection failed. Please check Connection settings.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+
         when (snapshot.state) {
             ClientConnectionState.CONNECTED -> {
                 txtConnectionStatus.setTextColor(Color.parseColor("#FFFFFF"))

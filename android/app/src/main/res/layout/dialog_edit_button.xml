@@ -2,9 +2,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#141414"
+    android:background="@drawable/bg_modal_rounded"
     android:orientation="vertical"
-    android:padding="18dp">
+    android:padding="16dp">
 
     <TextView
         android:id="@+id/txtEditButtonTitle"
@@ -12,77 +12,164 @@
         android:layout_height="wrap_content"
         android:text="EDIT BUTTON"
         android:textColor="#FFFFFF"
-        android:textSize="15sp"
+        android:textSize="14sp"
         android:textStyle="bold" />
 
-    <TextView
+    <!-- Row 1: Button Name + Target vJoy Button side-by-side -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Button Name:"
-        android:textColor="#9E9E9E"
-        android:textSize="12sp" />
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
 
-    <EditText
-        android:id="@+id/edtButtonLabel"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="4dp"
-        android:background="#0A0A0A"
-        android:inputType="textCapCharacters"
-        android:maxLength="16"
-        android:paddingHorizontal="10dp"
-        android:singleLine="true"
-        android:textColor="#FFFFFF"
-        android:textSize="13sp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Target vJoy Button on PC (1 to 32):"
-        android:textColor="#9E9E9E"
-        android:textSize="12sp" />
-
-    <Spinner
-        android:id="@+id/spnTargetVJoyButton"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="4dp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Button Behavior:"
-        android:textColor="#9E9E9E"
-        android:textSize="12sp" />
-
-    <RadioGroup
-        android:id="@+id/rgButtonBehavior"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:orientation="vertical">
-
-        <RadioButton
-            android:id="@+id/rbSingleClick"
-            android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:buttonTint="#FFFFFF"
-            android:checked="true"
-            android:text="Single Click (Normal tap)"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Button Name"
+                android:textColor="#9E9E9E"
+                android:textSize="11sp" />
+
+            <EditText
+                android:id="@+id/edtButtonLabel"
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:layout_marginTop="4dp"
+                android:background="#0A0A0A"
+                android:inputType="textCapCharacters"
+                android:maxLength="16"
+                android:paddingHorizontal="10dp"
+                android:singleLine="true"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="vJoy Button (1 - 32)"
+                android:textColor="#9E9E9E"
+                android:textSize="11sp" />
+
+            <Spinner
+                android:id="@+id/spnTargetVJoyButton"
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:layout_marginTop="4dp"
+                android:background="#0A0A0A" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Row 2: 3 Button Behavior Mode Buttons (All visible side-by-side) -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Button Behavior"
+        android:textColor="#9E9E9E"
+        android:textSize="11sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnModeSingleClick"
+            android:layout_width="0dp"
+            android:layout_height="42dp"
+            android:layout_marginEnd="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="#FFFFFF"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="4dp"
+            android:text="One Click\n(Normal Tap)"
+            android:textAllCaps="false"
+            android:textColor="#0A0A0A"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnModeHold"
+            android:layout_width="0dp"
+            android:layout_height="42dp"
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="#222222"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="4dp"
+            android:text="Hold\n(While Pressed)"
+            android:textAllCaps="false"
             android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnModeToggle"
+            android:layout_width="0dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:backgroundTint="#222222"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="4dp"
+            android:text="Stay Pressed\n(On / Off)"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Row 3: Cancel & Save Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnCancelEditButton"
+            android:layout_width="96dp"
+            android:layout_height="36dp"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="#262626"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="Cancel"
+            android:textAllCaps="false"
+            android:textColor="#E0E0E0"
             android:textSize="12sp" />
 
-        <RadioButton
-            android:id="@+id/rbHoldMode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:buttonTint="#FFFFFF"
-            android:text="Hold (Active while holding finger)"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
-    </RadioGroup>
+        <Button
+            android:id="@+id/btnSaveEditButton"
+            android:layout_width="96dp"
+            android:layout_height="36dp"
+            android:backgroundTint="#FFFFFF"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="Save"
+            android:textAllCaps="false"
+            android:textColor="#0A0A0A"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
 </LinearLayout>

@@ -20,8 +20,8 @@ public sealed class PacketSerializerTests
             YawScaled = FlightJoyPacket.ScaleAxis(0.1),
             ThrottleScaled = FlightJoyPacket.ScaleAxis(0.8),
             AuxScaled = FlightJoyPacket.ScaleAxis(-1.0),
-            ButtonsMask = (1 << 0) | (1 << 3) | (1 << 7),
-            Mac = "deadbeef"
+            BrakeScaled = FlightJoyPacket.ScaleAxis(0.5),
+            ButtonsMask = (1 << 0) | (1 << 3) | (1 << 7)
         };
 
         byte[] bytes = PacketSerializer.SerializeToUtf8Bytes(packet);
@@ -36,6 +36,7 @@ public sealed class PacketSerializerTests
         Assert.Equal(1000, restored.YawScaled);
         Assert.Equal(8000, restored.ThrottleScaled);
         Assert.Equal(-10000, restored.AuxScaled);
+        Assert.Equal(5000, restored.BrakeScaled);
         Assert.Equal(0.5, restored.PitchNormalized, 4);
         Assert.Equal(-0.25, restored.RollNormalized, 4);
         Assert.True(restored.IsButtonPressed(1));

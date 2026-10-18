@@ -43,16 +43,16 @@ class SensorController(
         get() = rotationSensor != null
 
     val sensorDescription: String
-        get() = rotationSensor?.name ?: "Sensor de Rotação Indisponível"
+        get() = rotationSensor?.name ?: "Rotation Sensor Unavailable"
 
     fun start() {
         val sensor = rotationSensor
         if (sensor == null) {
-            logger.warn("Sensor", "Nenhum sensor TYPE_GAME_ROTATION_VECTOR ou TYPE_ROTATION_VECTOR encontrado no dispositivo.")
+            logger.warn("Sensor", "No TYPE_GAME_ROTATION_VECTOR or TYPE_ROTATION_VECTOR sensor found on device.")
             return
         }
         sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
-        logger.info("Sensor", "Sensor iniciado: ${sensor.name} (delay=SENSOR_DELAY_GAME).")
+        logger.info("Sensor", "Sensor started: ${sensor.name} (delay=SENSOR_DELAY_GAME).")
     }
 
     fun stop() {
@@ -61,7 +61,7 @@ class SensorController(
 
     fun calibrateCenter() {
         calibrator.calibrateToCurrent()
-        logger.info("Calibração", "Orientação central (Zero/Tara) calibrada na posição atual do aparelho.")
+        logger.info("Calibration", "Center orientation calibrated to current device posture.")
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -90,6 +90,5 @@ class SensorController(
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        // Sem ação necessária
     }
 }

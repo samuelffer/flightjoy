@@ -4,7 +4,7 @@
 
 # FlightJoy
 
-**Use your Android phone as a wireless flight yoke, throttle, rudder, and button panel for PC flight simulators.**
+**Use your Android phone as a wireless flight yoke, sliders, and button panel for PC flight simulators.**
 
 [![Download ZIP](https://img.shields.io/badge/Download-FlightJoy.zip-white?style=for-the-badge&logo=github&logoColor=black)](./Zips/FlightJoy.zip)
 
@@ -52,10 +52,10 @@ Download the unified package (containing **`Android/FlightJoy.apk`** and **`Wind
 
 1. Launch **`FlightJoy.exe`** on your PC.
 2. Open the **FlightJoy** app on your Android phone (connected to the same Wi-Fi network).
-3. Tap **`☰`** $\rightarrow$ **Connection** $\rightarrow$ tap **`🔍`** to automatically find your PC $\rightarrow$ **Connect**.
+3. Tap **`☰`** $\rightarrow$ **Connection** $\rightarrow$ tap **`🔍`** to automatically find your PC (or tap **Connect** directly inside the **`☰`** menu for 1-tap Quick Connect).
 4. **Controls Overview**:
-   - **Sliders (Throttle, Brake & Rudder)**: Only move when you press and drag directly on the **square handle**.
-   - **Reverse Mode (`REV`)**: Toggle the `REV` switch next to the Throttle to pull reverse thrust from top (`0%`) to bottom (`100%`).
-   - **Progressive Brake Slider (`BRAKE`)**: Pull the vertical Brake slider down (`0%` to `100%`) to adjust wheel braking intensity, or use the `PRK BRK` / `BRAKE` buttons.
+   - **Sliders**: Only move when you press and drag directly on the **square handle**.
+   - **Reverse Mode (`REV`)**: Toggle the `REV` switch next to the left slider to pull reverse thrust from top (`0%`) to bottom (`100%`).
+   - **Optional Extra Brake Slider**: Can be enabled in **`☰` $\rightarrow$ Settings** (`Enable Extra Vertical Brake Slider`).
    - **Lock Gyroscope**: Tap the center of the `+` cross to lock/unlock the gyroscope at `0%`.
-   - **Edit Controls**: Tap **`☰`** $\rightarrow$ **Edit Controls**, then tap any button to rename it, change its vJoy button (`1..32`), or choose between **Single Click** and **Hold** mode.
+   - **Edit Controls**: Tap **`☰`** $\rightarrow$ **Edit Controls**, then tap any button to rename it, change its vJoy button (`1..32`), or choose between **One Click**, **Hold (While Pressed)**, and **Stay Pressed (On/Off)**.

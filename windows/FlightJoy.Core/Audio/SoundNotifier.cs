@@ -3,9 +3,9 @@ using System.Runtime.InteropServices;
 namespace FlightJoy.Core.Audio;
 
 /// <summary>
-/// Sintetiza em memória efeitos sonoros minimalistas e satisfatórios em formato WAV PCM 16-bit:
-/// - Conexão: 1 toque harmônico de sucesso.
-/// - Desconexão: 2 toques suaves.
+/// Synthesizes minimalist 16-bit PCM WAV sound effects in memory:
+/// - Connected: 1 pleasant harmonic chime.
+/// - Disconnected: 2 soft tones.
 /// </summary>
 public static class SoundNotifier
 {
@@ -21,7 +21,7 @@ public static class SoundNotifier
     private static extern bool PlaySound(byte[] pszSound, IntPtr hmod, uint fdwSound);
 
     /// <summary>
-    /// Toca 1 toque satisfatório de sucesso ao conectar o celular.
+    /// Plays 1 harmonic chime when a phone connects.
     /// </summary>
     public static void PlayConnected()
     {
@@ -41,7 +41,7 @@ public static class SoundNotifier
     }
 
     /// <summary>
-    /// Toca 2 toques suaves ao desconectar o celular.
+    /// Plays 2 soft tones when a phone disconnects.
     /// </summary>
     public static void PlayDisconnected()
     {
@@ -67,7 +67,6 @@ public static class SoundNotifier
         int totalSamples = (int)(sampleRate * durationSec);
         short[] pcm = new short[totalSamples];
 
-        // 1 toque de sucesso harmônico suave (880 Hz + quinta harmônica 1318.5 Hz)
         for (int i = 0; i < totalSamples; i++)
         {
             double t = (double)i / sampleRate;
@@ -102,14 +101,12 @@ public static class SoundNotifier
 
             if (t < tone1Sec)
             {
-                // 1º toque (587.33 Hz - D5)
                 double localT = t;
                 double env = Math.Min(1.0, localT / 0.008) * Math.Exp(-localT * 18.0);
                 sampleVal = Math.Sin(2.0 * Math.PI * 587.33 * localT) * env;
             }
             else if (t >= tone1Sec + gapSec)
             {
-                // 2º toque (440.0 Hz - A4)
                 double localT = t - (tone1Sec + gapSec);
                 double env = Math.Min(1.0, localT / 0.008) * Math.Exp(-localT * 16.0);
                 sampleVal = Math.Sin(2.0 * Math.PI * 440.0 * localT) * env;

@@ -236,7 +236,7 @@ class UdpTelemetryClient(
                     udp.receive(respDatagram)
                     val decoded = PacketCodec.decodeFromBytes(respDatagram.data, respDatagram.length)
                     if (decoded != null &&
-                        (decoded.type == ProtocolConstants.TYPE_WELCOME || decoded.type == ProtocolConstants.TYPE_PAIR_ACK) &&
+                        decoded.type == ProtocolConstants.TYPE_WELCOME &&
                         !decoded.sessionId.isNullOrBlank()
                     ) {
                         welcomePacket = decoded

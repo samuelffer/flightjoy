@@ -13,9 +13,6 @@ object ProtocolConstants {
     const val TYPE_DISCOVER_REPLY = "DISCOVER_REPLY"
     const val TYPE_HELLO = "HELLO"
     const val TYPE_WELCOME = "WELCOME"
-    const val TYPE_PAIR_REQ = "PAIR_REQ"
-    const val TYPE_PAIR_ACK = "PAIR_ACK"
-    const val TYPE_PAIR_ERR = "PAIR_ERR"
     const val TYPE_STATE = "STATE"
     const val TYPE_PING = "PING"
     const val TYPE_PONG = "PONG"
@@ -40,9 +37,6 @@ data class FlightJoyPacket(
 
     @SerializedName("port")
     var port: Int = 0,
-
-    @SerializedName("clientNonce")
-    var clientNonce: String? = null,
 
     @SerializedName("sessionId")
     var sessionId: String? = null,
@@ -96,10 +90,7 @@ data class FlightJoyPacket(
     var mapReverse: String? = null,
 
     @SerializedName("mb")
-    var mapBrake: String? = null,
-
-    @SerializedName("mac")
-    var mac: String? = null
+    var mapBrake: String? = null
 ) {
     companion object {
         fun scaleAxis(normalized: Float): Int {

@@ -7,7 +7,6 @@ public sealed class AppConfig
 {
     public int UdpPort { get; set; } = ProtocolConstants.DefaultUdpPort;
     public uint VJoyDeviceId { get; set; } = 1;
-    public string PairingPin { get; set; } = "482910";
     public int WatchdogTimeoutMs { get; set; } = ProtocolConstants.DefaultWatchdogTimeoutMs;
     public bool ResetAxesOnDisconnect { get; set; } = true;
 
@@ -22,7 +21,7 @@ public sealed class AppConfig
             TargetAxis = VJoyAxisUsage.X,
             Invert = false,
             Sensitivity = 1.0,
-            Deadzone = 0.03,
+            Deadzone = 0.00,
             Exponential = 0.25,
             Smoothing = 0.15
         },
@@ -32,7 +31,7 @@ public sealed class AppConfig
             TargetAxis = VJoyAxisUsage.Y,
             Invert = false,
             Sensitivity = 1.0,
-            Deadzone = 0.03,
+            Deadzone = 0.00,
             Exponential = 0.25,
             Smoothing = 0.15
         },
@@ -42,7 +41,7 @@ public sealed class AppConfig
             TargetAxis = VJoyAxisUsage.RZ,
             Invert = false,
             Sensitivity = 1.0,
-            Deadzone = 0.05,
+            Deadzone = 0.02,
             Exponential = 0.30,
             Smoothing = 0.20
         },
@@ -62,7 +61,7 @@ public sealed class AppConfig
             TargetAxis = VJoyAxisUsage.SL0,
             Invert = false,
             Sensitivity = 1.0,
-            Deadzone = 0.02,
+            Deadzone = 0.00,
             Exponential = 0.00,
             Smoothing = 0.05
         },

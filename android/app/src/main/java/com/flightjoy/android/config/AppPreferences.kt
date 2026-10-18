@@ -23,8 +23,15 @@ class AppPreferences(context: Context) {
             val i = def.slotIndex
             val rawLabel = prefs.getString("btn_${i}_label_en", null) ?: def.label
             val targetVJoy = prefs.getInt("btn_${i}_vjoy", def.targetVJoyButton).coerceIn(1, 32)
-            val isHold = prefs.getBoolean("btn_${i}_hold", def.isHoldMode)
-            loadedButtons.add(PhoneButtonConfig(i, rawLabel, targetVJoy, isHold))
+            val modeCode = prefs.getInt("btn_${i}_mode", def.behaviorMode.code)
+            loadedButtons.add(
+                PhoneButtonConfig(
+                    slotIndex = i,
+                    label = rawLabel,
+                    targetVJoyButton = targetVJoy,
+                    behaviorMode = ButtonBehaviorMode.fromCode(modeCode)
+                )
+            )
         }
 
         return FlightClientConfig(
@@ -32,8 +39,8 @@ class AppPreferences(context: Context) {
             serverPort = prefs.getInt("server_port", ProtocolConstants.DEFAULT_PORT),
             sendRateHz = prefs.getInt("send_rate_hz", 60).coerceIn(20, 120),
             landscapeYokeMode = prefs.getBoolean("landscape_mode", true),
-            maxDeflectionDeg = prefs.getFloat("max_deflection_deg", 45.0f).coerceIn(15.0f, 85.0f),
-            deadzone = prefs.getFloat("deadzone", 0.03f).coerceIn(0.0f, 0.35f),
+            maxDeflectionDeg = prefs.getFloat("max_deflection_deg_v2", 30.0f).coerceIn(15.0f, 85.0f),
+            deadzone = prefs.getFloat("deadzone_v2", 0.0f).coerceIn(0.0f, 0.35f),
             sensitivity = prefs.getFloat("sensitivity", 1.0f).coerceIn(0.2f, 2.5f),
             exponential = prefs.getFloat("exponential", 0.25f).coerceIn(0.0f, 0.90f),
             invertPitch = prefs.getBoolean("invert_pitch", false),
@@ -41,6 +48,7 @@ class AppPreferences(context: Context) {
             invertYaw = prefs.getBoolean("invert_yaw", false),
             enableYaw = prefs.getBoolean("enable_yaw", false),
             rudderAutoCenter = prefs.getBoolean("rudder_auto_center", true),
+            showBrakeSlider = prefs.getBoolean("show_brake_slider", false),
             mapPitchAxis = prefs.getString("map_pitch", "Y") ?: "Y",
             mapRollAxis = prefs.getString("map_roll", "X") ?: "X",
             mapRudderAxis = prefs.getString("map_rudder", "RZ") ?: "RZ",
@@ -57,8 +65,8 @@ class AppPreferences(context: Context) {
             .putInt("server_port", config.serverPort.coerceIn(1024, 65535))
             .putInt("send_rate_hz", config.sendRateHz.coerceIn(20, 120))
             .putBoolean("landscape_mode", config.landscapeYokeMode)
-            .putFloat("max_deflection_deg", config.maxDeflectionDeg.coerceIn(15.0f, 85.0f))
-            .putFloat("deadzone", config.deadzone.coerceIn(0.0f, 0.35f))
+            .putFloat("max_deflection_deg_v2", config.maxDeflectionDeg.coerceIn(15.0f, 85.0f))
+            .putFloat("deadzone_v2", config.deadzone.coerceIn(0.0f, 0.35f))
             .putFloat("sensitivity", config.sensitivity.coerceIn(0.2f, 2.5f))
             .putFloat("exponential", config.exponential.coerceIn(0.0f, 0.90f))
             .putBoolean("invert_pitch", config.invertPitch)
@@ -66,6 +74,7 @@ class AppPreferences(context: Context) {
             .putBoolean("invert_yaw", config.invertYaw)
             .putBoolean("enable_yaw", config.enableYaw)
             .putBoolean("rudder_auto_center", config.rudderAutoCenter)
+            .putBoolean("show_brake_slider", config.showBrakeSlider)
             .putString("map_pitch", config.mapPitchAxis)
             .putString("map_roll", config.mapRollAxis)
             .putString("map_rudder", config.mapRudderAxis)
@@ -77,7 +86,7 @@ class AppPreferences(context: Context) {
             val i = btn.slotIndex
             editor.putString("btn_${i}_label_en", btn.label.trim().ifEmpty { "B$i" })
             editor.putInt("btn_${i}_vjoy", btn.targetVJoyButton.coerceIn(1, 32))
-            editor.putBoolean("btn_${i}_hold", btn.isHoldMode)
+            editor.putInt("btn_${i}_mode", btn.behaviorMode.code)
         }
 
         editor.apply()

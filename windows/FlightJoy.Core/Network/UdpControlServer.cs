@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using FlightJoy.Core.Audio;
 using FlightJoy.Core.Config;
 using FlightJoy.Core.Control;
@@ -11,8 +12,8 @@ using FlightJoy.Core.VJoy;
 namespace FlightJoy.Core.Network;
 
 /// <summary>
-/// Servidor UDP de baixa latência responsável pela descoberta automática na rede (Broadcast),
-/// conexão direta sem PIN, recepção contínua de controles, efeitos sonoros e envio ao vJoy.
+/// Low-latency UDP control server handling LAN broadcast discovery,
+/// direct connection, real-time control streaming, sound notifications, and vJoy feeding.
 /// </summary>
 public sealed class UdpControlServer : IDisposable
 {
@@ -29,7 +30,6 @@ public sealed class UdpControlServer : IDisposable
     private Task? _watchdogLoopTask;
 
     private string? _activeSessionId;
-    private IPEndPoint? _pairedEndpoint;
     private ConnectedDeviceInfo? _connectedDevice;
     private long _lastSequenceNumber;
 
@@ -81,7 +81,7 @@ public sealed class UdpControlServer : IDisposable
         };
         _udpClient.Client.ReceiveBufferSize = 65536;
 
-        // Evita SocketException (WSAECONNRESET 10054) no Windows
+        // Avoid WSAECONNRESET (10054) on Windows UDP sockets
         if (OperatingSystem.IsWindows())
         {
             const int SIO_UDP_CONNRESET = -1744830452;
@@ -96,7 +96,7 @@ public sealed class UdpControlServer : IDisposable
 
         _lastRateCalcTickMs = Environment.TickCount64;
         SetState(ConnectionState.Listening, null);
-        _logger.Info("Rede", $"Servidor UDP iniciado na porta {_config.UdpPort} (PC: {Environment.MachineName}).");
+        _logger.Info("Network", $"UDP Server started on port {_config.UdpPort} (PC: {Environment.MachineName}).");
 
         CancellationToken token = _cts.Token;
         _receiveLoopTask = Task.Run(() => ReceiveLoopAsync(token), token);
@@ -131,7 +131,6 @@ public sealed class UdpControlServer : IDisposable
         lock (_sessionLock)
         {
             _activeSessionId = null;
-            _pairedEndpoint = null;
             _connectedDevice = null;
             _lastSequenceNumber = 0;
         }
@@ -139,7 +138,7 @@ public sealed class UdpControlServer : IDisposable
         if (State != ConnectionState.Stopped)
         {
             SetState(ConnectionState.Stopped, null);
-            _logger.Info("Rede", "Servidor UDP parado.");
+            _logger.Info("Network", "UDP Server stopped.");
         }
     }
 
@@ -169,12 +168,12 @@ public sealed class UdpControlServer : IDisposable
             {
                 if (!ct.IsCancellationRequested)
                 {
-                    _logger.Warn("Rede", $"Aviso socket UDP: {ex.SocketErrorCode}");
+                    _logger.Warn("Network", $"UDP socket warning: {ex.SocketErrorCode}");
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error("Rede", $"Erro ao processar pacote UDP: {ex.Message}");
+                _logger.Error("Network", $"Error processing UDP packet: {ex.Message}");
             }
         }
     }
@@ -205,34 +204,21 @@ public sealed class UdpControlServer : IDisposable
         if (packet == null || packet.Version != ProtocolConstants.ProtocolVersion)
             return null;
 
-        switch (packet.Type)
+        return packet.Type switch
         {
-            case ProtocolConstants.TypeDiscover:
-                return HandleDiscoverRequest(remoteEndPoint);
-
-            case ProtocolConstants.TypeHello:
-            case ProtocolConstants.TypePairReq:
-                return HandleHelloOrPairRequest(packet, remoteEndPoint, nowTickMs);
-
-            case ProtocolConstants.TypeState:
-                return HandleStatePacket(packet, remoteEndPoint, nowTickMs);
-
-            case ProtocolConstants.TypePing:
-                return HandlePingPacket(packet, nowTickMs);
-
-            case ProtocolConstants.TypeDisconnect:
-                HandleDisconnectPacket(packet, remoteEndPoint);
-                return null;
-
-            default:
-                return null;
-        }
+            ProtocolConstants.TypeDiscover => HandleDiscoverRequest(remoteEndPoint),
+            ProtocolConstants.TypeHello => HandleHelloRequest(packet, remoteEndPoint, nowTickMs),
+            ProtocolConstants.TypeState => HandleStatePacket(packet, remoteEndPoint, nowTickMs),
+            ProtocolConstants.TypePing => HandlePingPacket(packet, nowTickMs),
+            ProtocolConstants.TypeDisconnect => HandleDisconnectPacket(remoteEndPoint),
+            _ => null
+        };
     }
 
     private FlightJoyPacket HandleDiscoverRequest(IPEndPoint remoteEndPoint)
     {
         string machineName = GetSafeMachineName();
-        _logger.Info("Busca", $"Solicitação de busca recebida de {remoteEndPoint}. Respondendo como '{machineName}'.");
+        _logger.Info("Discovery", $"Discovery request from {remoteEndPoint}. Replying as '{machineName}'.");
         return new FlightJoyPacket
         {
             Version = ProtocolConstants.ProtocolVersion,
@@ -243,9 +229,9 @@ public sealed class UdpControlServer : IDisposable
         };
     }
 
-    private FlightJoyPacket HandleHelloOrPairRequest(FlightJoyPacket packet, IPEndPoint remoteEndPoint, long nowTickMs)
+    private FlightJoyPacket HandleHelloRequest(FlightJoyPacket packet, IPEndPoint remoteEndPoint, long nowTickMs)
     {
-        string sessionId = PairingAuthenticator.GenerateNonceHex(12);
+        string sessionId = RandomNumberGenerator.GetHexString(24, lowercase: true);
         string deviceId = string.IsNullOrWhiteSpace(packet.DeviceId) ? "android-client" : packet.DeviceId!;
         string deviceName = string.IsNullOrWhiteSpace(packet.DeviceName) ? "Android FlightJoy" : packet.DeviceName!;
 
@@ -259,7 +245,6 @@ public sealed class UdpControlServer : IDisposable
         lock (_sessionLock)
         {
             _activeSessionId = sessionId;
-            _pairedEndpoint = remoteEndPoint;
             _connectedDevice = deviceInfo;
             _lastSequenceNumber = 0;
         }
@@ -267,27 +252,18 @@ public sealed class UdpControlServer : IDisposable
         _watchdog.StartSession(nowTickMs);
         SetState(ConnectionState.PairedAndConnected, deviceInfo);
         SoundNotifier.PlayConnected();
-        _logger.Info("Conexão", $"Celular '{deviceInfo.DeviceName}' ({remoteEndPoint}) conectado!");
+        _logger.Info("Connection", $"Phone '{deviceInfo.DeviceName}' ({remoteEndPoint}) connected!");
 
-        bool isLegacyPair = packet.Type == ProtocolConstants.TypePairReq;
-        FlightJoyPacket reply = new()
+        return new FlightJoyPacket
         {
             Version = ProtocolConstants.ProtocolVersion,
-            Type = isLegacyPair ? ProtocolConstants.TypePairAck : ProtocolConstants.TypeWelcome,
+            Type = ProtocolConstants.TypeWelcome,
             DeviceId = deviceId,
-            ClientNonce = packet.ClientNonce,
             SessionId = sessionId,
             PcName = GetSafeMachineName(),
             Port = _config.UdpPort,
             TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
-
-        if (isLegacyPair && !string.IsNullOrEmpty(_config.PairingPin))
-        {
-            PairingAuthenticator.SignPairAck(reply, _config.PairingPin);
-        }
-
-        return reply;
     }
 
     private FlightJoyPacket? HandleStatePacket(FlightJoyPacket packet, IPEndPoint remoteEndPoint, long nowTickMs)
@@ -298,7 +274,6 @@ public sealed class UdpControlServer : IDisposable
             activeSessionId = _activeSessionId;
             if (string.IsNullOrEmpty(activeSessionId))
             {
-                // Reconexão transparente caso o celular já estivesse enviando STATE
                 activeSessionId = string.IsNullOrWhiteSpace(packet.SessionId) ? "auto-session" : packet.SessionId!;
                 _activeSessionId = activeSessionId;
                 _connectedDevice = new ConnectedDeviceInfo(
@@ -331,7 +306,6 @@ public sealed class UdpControlServer : IDisposable
             }
 
             _lastSequenceNumber = packet.Sequence;
-            _pairedEndpoint = remoteEndPoint;
         }
 
         Interlocked.Increment(ref _totalPacketsReceived);
@@ -362,7 +336,7 @@ public sealed class UdpControlServer : IDisposable
         return null;
     }
 
-    private FlightJoyPacket? HandlePingPacket(FlightJoyPacket packet, long nowTickMs)
+    private FlightJoyPacket HandlePingPacket(FlightJoyPacket packet, long nowTickMs)
     {
         _watchdog.RecordActivity(nowTickMs);
         return new FlightJoyPacket
@@ -376,7 +350,7 @@ public sealed class UdpControlServer : IDisposable
         };
     }
 
-    private void HandleDisconnectPacket(FlightJoyPacket packet, IPEndPoint remoteEndPoint)
+    private FlightJoyPacket? HandleDisconnectPacket(IPEndPoint remoteEndPoint)
     {
         bool resetOnDisconnect;
         lock (_sessionLock)
@@ -396,7 +370,8 @@ public sealed class UdpControlServer : IDisposable
 
         SetState(ConnectionState.Listening, null);
         SoundNotifier.PlayDisconnected();
-        _logger.Info("Conexão", $"Celular em {remoteEndPoint} desconectou.");
+        _logger.Info("Connection", $"Phone at {remoteEndPoint} disconnected.");
+        return null;
     }
 
     private void OnWatchdogTimeout()
@@ -418,7 +393,7 @@ public sealed class UdpControlServer : IDisposable
 
         SetState(ConnectionState.DisconnectedTimeout, previousDevice);
         SoundNotifier.PlayDisconnected();
-        _logger.Warn("Watchdog", $"Conexão perdida com '{previousDevice?.DeviceName ?? "Celular"}'. Controles neutralizados.");
+        _logger.Warn("Watchdog", $"Connection lost with '{previousDevice?.DeviceName ?? "Phone"}'. Controls neutralized.");
     }
 
     private void SetState(ConnectionState newState, ConnectedDeviceInfo? deviceInfo)

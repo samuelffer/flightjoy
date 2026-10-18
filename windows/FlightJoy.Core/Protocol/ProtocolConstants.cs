@@ -16,8 +16,4 @@ public static class ProtocolConstants
     public const string TypePing = "PING";
     public const string TypePong = "PONG";
     public const string TypeDisconnect = "DISCONNECT";
-
-    // Compatibilidade legada
-    public const string TypePairReq = "PAIR_REQ";
-    public const string TypePairAck = "PAIR_ACK";
 }

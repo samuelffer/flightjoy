@@ -31,10 +31,6 @@ public sealed class FlightJoyPacket
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int Port { get; set; }
 
-    [JsonPropertyName("clientNonce")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ClientNonce { get; set; }
-
     [JsonPropertyName("sessionId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SessionId { get; set; }
@@ -114,10 +110,6 @@ public sealed class FlightJoyPacket
     [JsonPropertyName("mb")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MapBrake { get; set; }
-
-    [JsonPropertyName("mac")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Mac { get; set; }
 
     [JsonIgnore]
     public double PitchNormalized => Math.Clamp((double)PitchScaled / ProtocolConstants.AxisScaleFactor, -1.0, 1.0);

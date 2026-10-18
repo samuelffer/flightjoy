@@ -150,7 +150,7 @@
             </ControlTemplate.Triggers>
         </ControlTemplate>
 
-        <!-- Animated Title Bar Button -->
+        <!-- Animated Title Bar Button (Minimize) -->
         <ControlTemplate x:Key="TitleBarButtonTemplate" TargetType="Button">
             <Border x:Name="border"
                     Background="#00222222"
@@ -173,6 +173,46 @@
                             <ColorAnimation Storyboard.TargetName="border"
                                             Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
                                             To="#00222222" Duration="0:0:0.14" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <!-- Animated Close (X) Title Bar Button: Red Square + White X on Hover -->
+        <ControlTemplate x:Key="CloseTitleBarButtonTemplate" TargetType="Button">
+            <Border x:Name="border"
+                    Background="#00E81123"
+                    CornerRadius="6">
+                <Path x:Name="closeXPath"
+                      Data="M 0,0 L 10,10 M 10,0 L 0,10"
+                      Stroke="#BDBDBD"
+                      StrokeThickness="1.5"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+                <EventTrigger RoutedEvent="MouseEnter">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <ColorAnimation Storyboard.TargetName="border"
+                                            Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                            To="#FFE81123" Duration="0:0:0.12" />
+                            <ColorAnimation Storyboard.TargetName="closeXPath"
+                                            Storyboard.TargetProperty="(Shape.Stroke).(SolidColorBrush.Color)"
+                                            To="#FFFFFFFF" Duration="0:0:0.12" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+                <EventTrigger RoutedEvent="MouseLeave">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <ColorAnimation Storyboard.TargetName="border"
+                                            Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                            To="#00E81123" Duration="0:0:0.14" />
+                            <ColorAnimation Storyboard.TargetName="closeXPath"
+                                            Storyboard.TargetProperty="(Shape.Stroke).(SolidColorBrush.Color)"
+                                            To="#FFBDBDBD" Duration="0:0:0.14" />
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
@@ -247,16 +287,10 @@
 
                         <Button Width="34"
                                 Height="28"
-                                Template="{StaticResource TitleBarButtonTemplate}"
+                                Template="{StaticResource CloseTitleBarButtonTemplate}"
                                 Cursor="Hand"
                                 ToolTip="Close to system tray (background)"
-                                Click="OnCloseToTrayTitleBarClick">
-                            <Path Data="M 0,0 L 10,10 M 10,0 L 0,10"
-                                  Stroke="#E0E0E0"
-                                  StrokeThickness="1.5"
-                                  VerticalAlignment="Center"
-                                  HorizontalAlignment="Center" />
-                        </Button>
+                                Click="OnCloseToTrayTitleBarClick" />
                     </StackPanel>
                 </Grid>
             </Border>
