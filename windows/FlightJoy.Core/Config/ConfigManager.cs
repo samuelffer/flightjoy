@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using FlightJoy.Core.Network;
 
 namespace FlightJoy.Core.Config;
 
@@ -34,14 +33,10 @@ public static class ConfigManager
             }
             catch
             {
-                // Se corrompido, recria padrão
             }
         }
 
-        AppConfig fresh = new()
-        {
-            PairingPin = PairingAuthenticator.GenerateSixDigitPin()
-        };
+        AppConfig fresh = new();
         Save(fresh, path);
         return fresh;
     }
@@ -58,7 +53,6 @@ public static class ConfigManager
         }
         catch
         {
-            // Evita falha fatal caso diretório seja somente leitura
         }
     }
 
@@ -68,10 +62,8 @@ public static class ConfigManager
             config.UdpPort = 49152;
         if (config.VJoyDeviceId < 1 || config.VJoyDeviceId > 16)
             config.VJoyDeviceId = 1;
-        if (string.IsNullOrWhiteSpace(config.PairingPin) || config.PairingPin.Length < 4)
-            config.PairingPin = PairingAuthenticator.GenerateSixDigitPin();
         if (config.WatchdogTimeoutMs < 200 || config.WatchdogTimeoutMs > 10000)
-            config.WatchdogTimeoutMs = 1000;
+            config.WatchdogTimeoutMs = 1200;
 
         if (config.AxisMappings == null || config.AxisMappings.Count == 0)
             config.AxisMappings = AppConfig.CreateDefaultAxisMappings();

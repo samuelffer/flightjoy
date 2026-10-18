@@ -46,6 +46,7 @@ import com.flightjoy.android.ui.VirtualStickView
 import java.util.Locale
 import kotlin.math.roundToInt
 
+// Main Cockpit Activity (Landscape flight controls + Portrait Settings/Connection)
 class MainActivity : AppCompatActivity() {
 
     private lateinit var prefs: AppPreferences
